@@ -6,7 +6,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.util.UriComponentsBuilder;
 import stats.dto.EndpointHitDto;
 import stats.dto.ViewStatsDto;
 
@@ -45,19 +44,17 @@ public class StatsClient {
     public List<ViewStatsDto> getStats(LocalDateTime start, LocalDateTime end,
                                        List<String> uris, boolean unique) {
         try {
-            UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/stats")
-                    .queryParam("start", start.format(DATE_FORMATTER))
-                    .queryParam("end", end.format(DATE_FORMATTER))
-                    .queryParam("unique", unique);
-
-            if (uris != null && !uris.isEmpty()) {
-                builder.queryParam("uris", String.join(",", uris));
-            }
-
-            String uri = builder.encode().toUriString();
-
             ViewStatsDto[] result = restClient.get()
-                    .uri(uri)
+                    .uri(uriBuilder -> {
+                        uriBuilder.path("/stats")
+                                .queryParam("start", start.format(DATE_FORMATTER))
+                                .queryParam("end", end.format(DATE_FORMATTER))
+                                .queryParam("unique", unique);
+                        if (uris != null && !uris.isEmpty()) {
+                            uriBuilder.queryParam("uris", String.join(",", uris));
+                        }
+                        return uriBuilder.build();
+                    })
                     .retrieve()
                     .body(ViewStatsDto[].class);
 
