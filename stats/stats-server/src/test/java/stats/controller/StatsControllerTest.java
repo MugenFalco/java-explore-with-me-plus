@@ -89,4 +89,19 @@ class StatsControllerTest {
                         .param("end", "2022-09-06 11:00:23"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void getStats_missingStart_returnsBadRequest() throws Exception {
+        mockMvc.perform(get("/stats")
+                        .param("end", "2022-09-06 11:00:23"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getStats_startAfterEnd_returnsBadRequest() throws Exception {
+        mockMvc.perform(get("/stats")
+                        .param("start", "2022-09-06 11:00:23")
+                        .param("end", "2022-09-05 11:00:23"))
+                .andExpect(status().isBadRequest());
+    }
 }

@@ -8,19 +8,14 @@ import org.springframework.web.bind.annotation.*;
 import stats.dto.EndpointHitDto;
 import stats.dto.GetStatsRequestDto;
 import stats.dto.ViewStatsDto;
-import stats.exception.ValidationException;
 import stats.service.StatsService;
 
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
 @Slf4j
 public class StatsController {
-
-    private static final DateTimeFormatter FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final StatsService statsService;
 
@@ -33,11 +28,7 @@ public class StatsController {
     }
 
     @GetMapping("/stats")
-    public List<ViewStatsDto> getStats(GetStatsRequestDto request) {
-        if (request.getStart().isAfter(request.getEnd())) {
-            throw new ValidationException("старт не может быть позже конца");
-        }
-
+    public List<ViewStatsDto> getStats(@Valid GetStatsRequestDto request) {
         log.info("Получение статистики по посещениям: start={}, end={}, uris={}, unique={}",
                 request.getStart(), request.getEnd(), request.getUris(), request.isUnique());
 
