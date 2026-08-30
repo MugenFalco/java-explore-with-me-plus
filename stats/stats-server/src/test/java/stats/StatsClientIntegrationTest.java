@@ -29,7 +29,7 @@ class StatsClientIntegrationTest {
         StatsClient client = new StatsClient("http://localhost:" + port);
 
         LocalDateTime now = LocalDateTime.now();
-        client.hit(new EndpointHitDto(null, "ewm-main-service", "/events/42", "127.0.0.1", now));
+        client.hit(new EndpointHitDto("ewm-main-service", "/events/42", "127.0.0.1", now));
 
         List<ViewStatsDto> stats = client.getStats(now.minusMinutes(1), now.plusMinutes(1),
                 List.of("/events/42"), false);

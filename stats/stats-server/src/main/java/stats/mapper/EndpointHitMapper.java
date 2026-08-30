@@ -17,13 +17,4 @@ public final class EndpointHitMapper {
         return hit;
     }
 
-    public static EndpointHitDto toDto(EndpointHit entity) {
-        return new EndpointHitDto(
-                entity.getId(),
-                entity.getApp(),
-                entity.getUri(),
-                entity.getIp(),
-                entity.getTimestamp()
-        );
-    }
 }

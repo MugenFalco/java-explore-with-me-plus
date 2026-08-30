@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import stats.dto.EndpointHitDto;
 import stats.dto.ViewStatsDto;
-import stats.exception.ValidationException;
 import stats.mapper.EndpointHitMapper;
 import stats.model.EndpointHit;
 import stats.repository.EndpointHitRepository;
@@ -22,18 +21,13 @@ public class StatsServiceImpl implements StatsService {
 
     @Override
     @Transactional
-    public EndpointHitDto saveHit(EndpointHitDto endpointHitDto) {
+    public void saveHit(EndpointHitDto endpointHitDto) {
         EndpointHit hit = EndpointHitMapper.toEntity(endpointHitDto);
-        EndpointHit saved = repository.save(hit);
-        return EndpointHitMapper.toDto(saved);
+        repository.save(hit);
     }
 
     @Override
     public List<ViewStatsDto> getStats(LocalDateTime start, LocalDateTime end, List<String> uris, boolean unique) {
-        if (start.isAfter(end)) {
-            throw new ValidationException("старт не может быть позже конца");
-        }
-
         boolean hasUris = uris != null && !uris.isEmpty();
 
         if (hasUris) {

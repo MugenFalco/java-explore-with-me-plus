@@ -38,7 +38,7 @@ class StatsControllerTest {
 
     @Test
     void saveHit_returnsCreated() throws Exception {
-        EndpointHitDto hit = new EndpointHitDto(null, "ewm-main-service", "/events/1",
+        EndpointHitDto hit = new EndpointHitDto("ewm-main-service", "/events/1",
                 "192.163.0.1", LocalDateTime.now());
 
         mockMvc.perform(post("/hit")
@@ -49,7 +49,7 @@ class StatsControllerTest {
 
     @Test
     void saveHit_missingApp_returnsBadRequest() throws Exception {
-        EndpointHitDto hit = new EndpointHitDto(null, null, "/events/1",
+        EndpointHitDto hit = new EndpointHitDto(null, "/events/1",
                 "192.163.0.1", LocalDateTime.now());
 
         mockMvc.perform(post("/hit")
@@ -61,8 +61,8 @@ class StatsControllerTest {
     @Test
     void getStats_returnsAggregatedHits() throws Exception {
         LocalDateTime now = LocalDateTime.now();
-        EndpointHitDto hit1 = new EndpointHitDto(null, "ewm-main-service", "/events/5", "10.0.0.1", now);
-        EndpointHitDto hit2 = new EndpointHitDto(null, "ewm-main-service", "/events/5", "10.0.0.2", now);
+        EndpointHitDto hit1 = new EndpointHitDto("ewm-main-service", "/events/5", "10.0.0.1", now);
+        EndpointHitDto hit2 = new EndpointHitDto("ewm-main-service", "/events/5", "10.0.0.2", now);
 
         mockMvc.perform(post("/hit").contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(hit1)));
