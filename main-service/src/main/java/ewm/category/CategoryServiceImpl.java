@@ -2,6 +2,7 @@ package ewm.category;
 
 import ewm.category.dto.CategoryDto;
 import ewm.category.dto.NewCategoryDto;
+import ewm.event.EventRepository;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import java.util.List;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final EventRepository eventRepository;
 
     @Override
     @Transactional
@@ -49,8 +51,9 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     public void delete(Long catId) {
         findOrThrow(catId);
-        // TODO: после реализации Event — добавить проверку eventRepository.existsByCategoryId(catId)
-        // и бросать ConflictException("The category is not empty"), если события есть.
+        if (eventRepository.existsByCategoryId(catId)) {
+            throw new ConflictException("The category is not empty");
+        }
         categoryRepository.deleteById(catId);
         log.info("Удалена категория с id {}", catId);
     }
