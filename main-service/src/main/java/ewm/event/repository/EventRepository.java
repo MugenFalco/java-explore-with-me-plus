@@ -1,5 +1,6 @@
-package ewm.event;
+package ewm.event.repository;
 
+import ewm.event.entity.Event;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.domain.Page;

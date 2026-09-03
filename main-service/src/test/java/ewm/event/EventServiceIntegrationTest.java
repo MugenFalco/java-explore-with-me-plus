@@ -8,7 +8,11 @@ import ewm.event.dto.EventShortDto;
 import ewm.event.dto.LocationDto;
 import ewm.event.dto.NewEventDto;
 import ewm.event.dto.PublicEventSort;
+import ewm.event.dto.PublicEventSearchParams;
 import ewm.event.dto.UpdateEventAdminRequest;
+import ewm.event.entity.EventState;
+import ewm.event.repository.EventRepository;
+import ewm.event.service.EventService;
 import ewm.exception.ValidationException;
 import ewm.user.User;
 import ewm.user.UserRepository;
@@ -92,10 +96,14 @@ class EventServiceIntegrationTest {
         publish(first.getId());
         publish(second.getId());
 
-        List<EventShortDto> events = eventService.getPublicEvents(
-                "концерт", List.of(categoryId), false, null, null, false,
-                PublicEventSort.EVENT_DATE, 1, 1
-        );
+        PublicEventSearchParams searchParams = new PublicEventSearchParams();
+        searchParams.setText("концерт");
+        searchParams.setCategories(List.of(categoryId));
+        searchParams.setPaid(false);
+        searchParams.setSort(PublicEventSort.EVENT_DATE);
+        searchParams.setFrom(1);
+        searchParams.setSize(1);
+        List<EventShortDto> events = eventService.getPublicEvents(searchParams);
 
         assertThat(events).singleElement().extracting(EventShortDto::getId).isEqualTo(second.getId());
     }

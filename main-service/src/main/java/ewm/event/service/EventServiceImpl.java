@@ -1,20 +1,26 @@
-package ewm.event;
+package ewm.event.service;
 
 import ewm.category.Category;
-import ewm.category.CategoryRepository;
+import ewm.category.CategoryService;
+import ewm.common.dto.PageRequestDto;
+import ewm.event.dto.AdminEventSearchParams;
 import ewm.event.dto.EventFullDto;
 import ewm.event.dto.EventShortDto;
 import ewm.event.dto.EventAdminStateAction;
 import ewm.event.dto.EventUserStateAction;
 import ewm.event.dto.NewEventDto;
 import ewm.event.dto.PublicEventSort;
+import ewm.event.dto.PublicEventSearchParams;
 import ewm.event.dto.UpdateEventAdminRequest;
 import ewm.event.dto.UpdateEventUserRequest;
+import ewm.event.entity.*;
+import ewm.event.mapper.EventMapper;
+import ewm.event.repository.EventRepository;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
 import ewm.exception.ValidationException;
 import ewm.user.User;
-import ewm.user.UserRepository;
+import ewm.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,15 +41,16 @@ public class EventServiceImpl implements EventService {
     private static final int ADMIN_EVENT_LEAD_TIME_HOURS = 1;
 
     private final EventRepository eventRepository;
-    private final UserRepository userRepository;
-    private final CategoryRepository categoryRepository;
+    private final UserService userService;
+    private final CategoryService categoryService;
 
     @Override
-    public List<EventShortDto> getUserEvents(Long userId, int from, int size) {
+    public List<EventShortDto> getUserEvents(Long userId, PageRequestDto pageRequest) {
         getUser(userId);
-        return getPage(from, size, Sort.unsorted(), pageable -> eventRepository.findAllByInitiatorId(userId, pageable))
+        return getPage(new EventPage(pageRequest, Sort.unsorted()),
+                pageable -> eventRepository.findAllByInitiatorId(userId, pageable))
                 .stream()
-                .map(event -> EventMapper.toEventShortDto(event, 0, 0))
+                .map(event -> EventMapper.toEventShortDto(event, EventMetrics.EMPTY))
                 .toList();
     }
 
@@ -53,19 +60,19 @@ public class EventServiceImpl implements EventService {
         validateEventDate(dto.getEventDate());
         User initiator = getUser(userId);
         Category category = getCategory(dto.getCategory());
-        Event event = EventMapper.toEvent(dto, category, initiator);
-        return EventMapper.toEventFullDto(eventRepository.save(event), 0, 0);
+        Event event = EventMapper.toEvent(dto, new EventCreationContext(category, initiator));
+        return EventMapper.toEventFullDto(eventRepository.save(event), EventMetrics.EMPTY);
     }
 
     @Override
     public EventFullDto getUserEvent(Long userId, Long eventId) {
-        return EventMapper.toEventFullDto(getUserEventOrThrow(userId, eventId), 0, 0);
+        return EventMapper.toEventFullDto(getUserEventOrThrow(userId, eventId), EventMetrics.EMPTY);
     }
 
     @Override
     @Transactional
-    public EventFullDto updateByUser(Long userId, Long eventId, UpdateEventUserRequest request) {
-        Event event = getUserEventOrThrow(userId, eventId);
+    public EventFullDto updateByUser(UserEventPath eventPath, UpdateEventUserRequest request) {
+        Event event = getUserEventOrThrow(eventPath.getUserId(), eventPath.getEventId());
         if (event.getState() == EventState.PUBLISHED) {
             throw new ConflictException("Изменять можно только события в состоянии ожидания модерации или отменённые.");
         }
@@ -100,16 +107,15 @@ public class EventServiceImpl implements EventService {
         if (request.getTitle() != null) {
             event.setTitle(request.getTitle());
         }
-        return EventMapper.toEventFullDto(event, 0, 0);
+        return EventMapper.toEventFullDto(event, EventMetrics.EMPTY);
     }
 
     @Override
-    public List<EventFullDto> getAdminEvents(List<Long> users, List<EventState> states, List<Long> categories,
-                                             LocalDateTime rangeStart, LocalDateTime rangeEnd, int from, int size) {
-        return getPage(from, size, Sort.unsorted(), pageable -> eventRepository.findAll(EventSpecification.byAdminFilters(
-                        users, states, categories, rangeStart, rangeEnd), pageable))
+    public List<EventFullDto> getAdminEvents(AdminEventSearchParams searchParams) {
+        return getPage(new EventPage(searchParams, Sort.unsorted()), pageable -> eventRepository.findAll(
+                        EventSpecification.byAdminFilters(searchParams), pageable))
                 .stream()
-                .map(event -> EventMapper.toEventFullDto(event, 0, 0))
+                .map(event -> EventMapper.toEventFullDto(event, EventMetrics.EMPTY))
                 .toList();
     }
 
@@ -148,23 +154,20 @@ public class EventServiceImpl implements EventService {
         if (request.getTitle() != null) {
             event.setTitle(request.getTitle());
         }
-        return EventMapper.toEventFullDto(event, 0, 0);
+        return EventMapper.toEventFullDto(event, EventMetrics.EMPTY);
     }
 
     @Override
-    public List<EventShortDto> getPublicEvents(String text, List<Long> categories, Boolean paid,
-                                               LocalDateTime rangeStart, LocalDateTime rangeEnd,
-                                               boolean onlyAvailable, PublicEventSort sort, int from, int size) {
-        validateRange(rangeStart, rangeEnd);
-        if (rangeStart == null && rangeEnd == null) {
-            rangeStart = LocalDateTime.now();
+    public List<EventShortDto> getPublicEvents(PublicEventSearchParams searchParams) {
+        validateRange(searchParams.getRangeStart(), searchParams.getRangeEnd());
+        if (searchParams.getRangeStart() == null && searchParams.getRangeEnd() == null) {
+            searchParams.setRangeStart(LocalDateTime.now());
         }
-        LocalDateTime effectiveRangeStart = rangeStart;
-        return getPage(from, size, toSort(sort), pageable -> eventRepository.findAll(EventSpecification.byPublicFilters(
-                        text, categories, paid, effectiveRangeStart, rangeEnd), pageable))
+        return getPage(new EventPage(searchParams, toSort(searchParams.getSort())), pageable -> eventRepository.findAll(
+                        EventSpecification.byPublicFilters(searchParams), pageable))
                 .stream()
                 // TODO: Person 3 will provide confirmed requests; Person 4 will provide views.
-                .map(event -> EventMapper.toEventShortDto(event, 0, 0))
+                .map(event -> EventMapper.toEventShortDto(event, EventMetrics.EMPTY))
                 .toList();
     }
 
@@ -175,7 +178,7 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Событие с идентификатором " + eventId + " не найдено.");
         }
         // TODO: Person 3 will provide confirmed requests; Person 4 will provide views and endpoint hit.
-        return EventMapper.toEventFullDto(event, 0, 0);
+        return EventMapper.toEventFullDto(event, EventMetrics.EMPTY);
     }
 
     private EventState toState(EventUserStateAction stateAction) {
@@ -197,15 +200,15 @@ public class EventServiceImpl implements EventService {
         }
     }
 
-    private List<Event> getPage(int from, int size, Sort sort, Function<PageRequest, Page<Event>> loader) {
-        if (from < 0 || size < 1) {
+    private List<Event> getPage(EventPage page, Function<PageRequest, Page<Event>> loader) {
+        if (page.from < 0 || page.size < 1) {
             throw new ValidationException("Параметр from не может быть отрицательным, а size должен быть положительным.");
         }
-        long requested = (long) from + size;
+        long requested = (long) page.from + page.size;
         int fetchSize = requested > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) requested;
-        return loader.apply(PageRequest.of(0, fetchSize, sort)).getContent().stream()
-                .skip(from)
-                .limit(size)
+        return loader.apply(PageRequest.of(0, fetchSize, page.sort)).getContent().stream()
+                .skip(page.from)
+                .limit(page.size)
                 .toList();
     }
 
@@ -239,13 +242,11 @@ public class EventServiceImpl implements EventService {
     }
 
     private User getUser(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с идентификатором " + userId + " не найден."));
+        return userService.getEntityById(userId);
     }
 
     private Category getCategory(Long categoryId) {
-        return categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new NotFoundException("Категория с идентификатором " + categoryId + " не найдена."));
+        return categoryService.getEntityById(categoryId);
     }
 
     private Event getUserEventOrThrow(Long userId, Long eventId) {
@@ -256,5 +257,18 @@ public class EventServiceImpl implements EventService {
     private Event getEvent(Long eventId) {
         return eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Событие с идентификатором " + eventId + " не найдено."));
+    }
+
+    private static final class EventPage {
+
+        private final int from;
+        private final int size;
+        private final Sort sort;
+
+        private EventPage(PageRequestDto pageRequest, Sort sort) {
+            this.from = pageRequest.getFrom();
+            this.size = pageRequest.getSize();
+            this.sort = sort;
+        }
     }
 }

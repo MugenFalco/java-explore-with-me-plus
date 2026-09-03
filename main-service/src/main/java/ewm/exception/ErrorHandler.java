@@ -25,29 +25,29 @@ public class ErrorHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiError handleNotFound(NotFoundException e) {
         log.warn("Объект не найден: {}", e.getMessage());
-        return build(HttpStatus.NOT_FOUND, "Необходимый объект не найден.", e.getMessage());
+        return build(HttpStatus.NOT_FOUND, new ErrorDescription("Необходимый объект не найден.", e.getMessage()));
     }
 
     @ExceptionHandler(ConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleConflict(ConflictException e) {
         log.warn("Конфликт: {}", e.getMessage());
-        return build(HttpStatus.CONFLICT, "Условия для выполнения операции не соблюдены.", e.getMessage());
+        return build(HttpStatus.CONFLICT, new ErrorDescription("Условия для выполнения операции не соблюдены.", e.getMessage()));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleDataIntegrity(DataIntegrityViolationException e) {
         log.warn("Нарушение целостности данных: {}", e.getMessage());
-        return build(HttpStatus.CONFLICT, "Нарушено ограничение целостности данных.",
-                "Нарушено ограничение целостности данных.");
+        return build(HttpStatus.CONFLICT, new ErrorDescription("Нарушено ограничение целостности данных.",
+                "Нарушено ограничение целостности данных."));
     }
 
     @ExceptionHandler(ValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError handleValidation(ValidationException e) {
         log.warn("Ошибка валидации: {}", e.getMessage());
-        return build(HttpStatus.BAD_REQUEST, "Некорректно составлен запрос.", e.getMessage());
+        return build(HttpStatus.BAD_REQUEST, new ErrorDescription("Некорректно составлен запрос.", e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -59,7 +59,7 @@ public class ErrorHandler {
                         + ". Переданное значение: " + fe.getRejectedValue())
                 .orElse("Ошибка валидации");
         log.warn("Ошибка валидации тела запроса: {}", message);
-        return build(HttpStatus.BAD_REQUEST, "Некорректно составлен запрос.", message);
+        return build(HttpStatus.BAD_REQUEST, new ErrorDescription("Некорректно составлен запрос.", message));
     }
 
     @ExceptionHandler({ConstraintViolationException.class, MissingServletRequestParameterException.class,
@@ -67,32 +67,38 @@ public class ErrorHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError handleBadRequest(Exception e) {
         log.warn("Некорректный запрос: {}", e.getMessage());
-        return build(HttpStatus.BAD_REQUEST, "Некорректно составлен запрос.",
-                "Проверьте формат и обязательные параметры запроса.");
+        return build(HttpStatus.BAD_REQUEST, new ErrorDescription("Некорректно составлен запрос.",
+                "Проверьте формат и обязательные параметры запроса."));
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiError handleEntityNotFound(EntityNotFoundException e) {
         log.warn("Объект не найден: {}", e.getMessage());
-        return build(HttpStatus.NOT_FOUND, "Необходимый объект не найден.", "Объект не найден.");
+        return build(HttpStatus.NOT_FOUND, new ErrorDescription("Необходимый объект не найден.", "Объект не найден."));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiError handleNoResource(NoResourceFoundException e) {
         log.warn("Маршрут не найден: {}", e.getResourcePath());
-        return build(HttpStatus.NOT_FOUND, "Запрошенный маршрут не найден.", "Запрошенный ресурс не найден.");
+        return build(HttpStatus.NOT_FOUND,
+                new ErrorDescription("Запрошенный маршрут не найден.", "Запрошенный ресурс не найден."));
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiError handleUnexpected(Exception e) {
         log.error("Непредвиденная ошибка", e);
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Непредвиденная ошибка.", "Произошла непредвиденная ошибка.");
+        return build(HttpStatus.INTERNAL_SERVER_ERROR,
+                new ErrorDescription("Непредвиденная ошибка.", "Произошла непредвиденная ошибка."));
     }
 
-    private ApiError build(HttpStatus status, String reason, String message) {
-        return new ApiError(List.of(message), message, reason, status.name(), LocalDateTime.now());
+    private ApiError build(HttpStatus status, ErrorDescription description) {
+        return new ApiError(List.of(description.message()), description.message(), description.reason(), status.name(),
+                LocalDateTime.now());
+    }
+
+    private record ErrorDescription(String reason, String message) {
     }
 }

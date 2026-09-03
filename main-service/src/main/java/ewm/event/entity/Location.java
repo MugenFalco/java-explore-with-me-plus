@@ -1,4 +1,4 @@
-package ewm.event;
+package ewm.event.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;

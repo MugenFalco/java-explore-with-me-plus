@@ -2,11 +2,11 @@ package ewm.category;
 
 import ewm.category.dto.CategoryDto;
 import ewm.category.dto.NewCategoryDto;
-import ewm.event.EventRepository;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +20,6 @@ import java.util.List;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
-    private final EventRepository eventRepository;
 
     @Override
     @Transactional
@@ -50,11 +49,13 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public void delete(Long catId) {
-        findOrThrow(catId);
-        if (eventRepository.existsByCategoryId(catId)) {
+        Category category = findOrThrow(catId);
+        try {
+            categoryRepository.delete(category);
+            categoryRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
             throw new ConflictException("Невозможно удалить категорию: с ней связаны события.");
         }
-        categoryRepository.deleteById(catId);
         log.info("Удалена категория с id {}", catId);
     }
 
@@ -68,6 +69,11 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public CategoryDto getById(Long catId) {
         return CategoryMapper.toCategoryDto(findOrThrow(catId));
+    }
+
+    @Override
+    public Category getEntityById(Long catId) {
+        return findOrThrow(catId);
     }
 
     private Category findOrThrow(Long catId) {

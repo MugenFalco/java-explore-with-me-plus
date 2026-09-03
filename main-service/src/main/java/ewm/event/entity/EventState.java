@@ -1,4 +1,4 @@
-package ewm.event;
+package ewm.event.entity;
 
 public enum EventState {
     PENDING,

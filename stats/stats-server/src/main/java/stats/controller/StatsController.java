@@ -32,7 +32,6 @@ public class StatsController {
         log.info("Получение статистики по посещениям: start={}, end={}, uris={}, unique={}",
                 request.getStart(), request.getEnd(), request.getUris(), request.isUnique());
 
-        return statsService.getStats(request.getStart(), request.getEnd(),
-                request.getUris(), request.isUnique());
+        return statsService.getStats(request);
     }
 }

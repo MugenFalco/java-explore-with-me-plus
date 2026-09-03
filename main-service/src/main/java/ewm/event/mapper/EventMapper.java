@@ -1,12 +1,11 @@
-package ewm.event;
+package ewm.event.mapper;
 
-import ewm.category.Category;
 import ewm.category.CategoryMapper;
 import ewm.event.dto.EventFullDto;
 import ewm.event.dto.EventShortDto;
 import ewm.event.dto.LocationDto;
 import ewm.event.dto.NewEventDto;
-import ewm.user.User;
+import ewm.event.entity.*;
 import ewm.user.UserMapper;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -16,13 +15,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class EventMapper {
 
-    public static Event toEvent(NewEventDto dto, Category category, User initiator) {
+    public static Event toEvent(NewEventDto dto, EventCreationContext context) {
         Event event = new Event();
         event.setAnnotation(dto.getAnnotation());
-        event.setCategory(category);
+        event.setCategory(context.category());
         event.setDescription(dto.getDescription());
         event.setEventDate(dto.getEventDate());
-        event.setInitiator(initiator);
+        event.setInitiator(context.initiator());
         event.setLocation(toLocation(dto.getLocation()));
         event.setPaid(Boolean.TRUE.equals(dto.getPaid()));
         event.setParticipantLimit(dto.getParticipantLimit() == null ? 0 : dto.getParticipantLimit());
@@ -33,11 +32,11 @@ public final class EventMapper {
         return event;
     }
 
-    public static EventFullDto toEventFullDto(Event event, long confirmedRequests, long views) {
+    public static EventFullDto toEventFullDto(Event event, EventMetrics metrics) {
         return new EventFullDto(
                 event.getAnnotation(),
                 CategoryMapper.toCategoryDto(event.getCategory()),
-                confirmedRequests,
+                metrics.confirmedRequests(),
                 event.getCreatedOn(),
                 event.getDescription(),
                 event.getEventDate(),
@@ -50,21 +49,21 @@ public final class EventMapper {
                 event.isRequestModeration(),
                 event.getState(),
                 event.getTitle(),
-                views
+                metrics.views()
         );
     }
 
-    public static EventShortDto toEventShortDto(Event event, long confirmedRequests, long views) {
+    public static EventShortDto toEventShortDto(Event event, EventMetrics metrics) {
         return new EventShortDto(
                 event.getAnnotation(),
                 CategoryMapper.toCategoryDto(event.getCategory()),
-                confirmedRequests,
+                metrics.confirmedRequests(),
                 event.getEventDate(),
                 event.getId(),
                 UserMapper.toUserShortDto(event.getInitiator()),
                 event.isPaid(),
                 event.getTitle(),
-                views
+                metrics.views()
         );
     }
 
