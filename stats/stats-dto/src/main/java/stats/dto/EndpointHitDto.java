@@ -14,16 +14,16 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class EndpointHitDto {
 
-    @NotBlank
+    @NotBlank(message = "не должно быть пустым")
     private String app;
 
-    @NotBlank
+    @NotBlank(message = "не должно быть пустым")
     private String uri;
 
-    @NotBlank
+    @NotBlank(message = "не должно быть пустым")
     private String ip;
 
-    @NotNull
+    @NotNull(message = "должно быть указано")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime timestamp;
 }

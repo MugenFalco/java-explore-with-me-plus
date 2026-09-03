@@ -11,11 +11,11 @@ import java.util.List;
 @Data
 public class GetStatsRequestDto {
 
-    @NotNull
+    @NotNull(message = "должно быть указано")
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime start;
 
-    @NotNull
+    @NotNull(message = "должно быть указано")
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime end;
 
@@ -23,7 +23,7 @@ public class GetStatsRequestDto {
 
     private boolean unique;
 
-    @AssertTrue(message = "start не может быть позже end")
+    @AssertTrue(message = "дата начала не может быть позже даты окончания")
     private boolean isStartBeforeEnd() {
         return start == null || end == null || !start.isAfter(end);
     }

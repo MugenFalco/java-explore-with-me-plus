@@ -4,12 +4,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import stats.dto.EndpointHitDto;
+import stats.dto.GetStatsRequestDto;
 import stats.dto.ViewStatsDto;
 import stats.mapper.EndpointHitMapper;
 import stats.model.EndpointHit;
 import stats.repository.EndpointHitRepository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -27,17 +27,17 @@ public class StatsServiceImpl implements StatsService {
     }
 
     @Override
-    public List<ViewStatsDto> getStats(LocalDateTime start, LocalDateTime end, List<String> uris, boolean unique) {
-        boolean hasUris = uris != null && !uris.isEmpty();
+    public List<ViewStatsDto> getStats(GetStatsRequestDto request) {
+        boolean hasUris = request.getUris() != null && !request.getUris().isEmpty();
 
         if (hasUris) {
-            return unique
-                    ? repository.findUniqueStatsByUris(start, end, uris)
-                    : repository.findStatsByUris(start, end, uris);
+            return request.isUnique()
+                    ? repository.findUniqueStatsByUris(request.getStart(), request.getEnd(), request.getUris())
+                    : repository.findStatsByUris(request.getStart(), request.getEnd(), request.getUris());
         }
 
-        return unique
-                ? repository.findUniqueStats(start, end)
-                : repository.findStats(start, end);
+        return request.isUnique()
+                ? repository.findUniqueStats(request.getStart(), request.getEnd())
+                : repository.findStats(request.getStart(), request.getEnd());
     }
 }
