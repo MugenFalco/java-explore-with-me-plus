@@ -25,7 +25,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserDto create(NewUserRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ConflictException("could not execute statement; constraint [uq_email]");
+            throw new ConflictException("Пользователь с таким адресом электронной почты уже существует.");
         }
         User saved = userRepository.save(UserMapper.toUser(request));
         log.info("Зарегистрирован пользователь с id {}", saved.getId());
@@ -47,7 +47,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void delete(Long userId) {
         if (!userRepository.existsById(userId)) {
-            throw new NotFoundException("User with id=" + userId + " was not found");
+            throw new NotFoundException("Пользователь с идентификатором " + userId + " не найден.");
         }
         userRepository.deleteById(userId);
         log.info("Удалён пользователь с id {}", userId);

@@ -16,6 +16,7 @@ import ewm.exception.ValidationException;
 import ewm.user.User;
 import ewm.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +41,7 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<EventShortDto> getUserEvents(Long userId, int from, int size) {
         getUser(userId);
-        return eventRepository.findAllByInitiatorId(userId, PageRequest.of(from / size, size))
+        return getPage(from, size, Sort.unsorted(), pageable -> eventRepository.findAllByInitiatorId(userId, pageable))
                 .stream()
                 .map(event -> EventMapper.toEventShortDto(event, 0, 0))
                 .toList();
@@ -65,7 +67,7 @@ public class EventServiceImpl implements EventService {
     public EventFullDto updateByUser(Long userId, Long eventId, UpdateEventUserRequest request) {
         Event event = getUserEventOrThrow(userId, eventId);
         if (event.getState() == EventState.PUBLISHED) {
-            throw new ConflictException("Only pending or canceled events can be changed");
+            throw new ConflictException("Изменять можно только события в состоянии ожидания модерации или отменённые.");
         }
         if (request.getEventDate() != null) {
             validateEventDate(request.getEventDate());
@@ -104,8 +106,8 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<EventFullDto> getAdminEvents(List<Long> users, List<EventState> states, List<Long> categories,
                                              LocalDateTime rangeStart, LocalDateTime rangeEnd, int from, int size) {
-        return eventRepository.findAll(EventSpecification.byAdminFilters(
-                        users, states, categories, rangeStart, rangeEnd), PageRequest.of(from / size, size))
+        return getPage(from, size, Sort.unsorted(), pageable -> eventRepository.findAll(EventSpecification.byAdminFilters(
+                        users, states, categories, rangeStart, rangeEnd), pageable))
                 .stream()
                 .map(event -> EventMapper.toEventFullDto(event, 0, 0))
                 .toList();
@@ -157,9 +159,9 @@ public class EventServiceImpl implements EventService {
         if (rangeStart == null && rangeEnd == null) {
             rangeStart = LocalDateTime.now();
         }
-        PageRequest pageRequest = PageRequest.of(from / size, size, toSort(sort));
-        return eventRepository.findAll(EventSpecification.byPublicFilters(
-                        text, categories, paid, rangeStart, rangeEnd), pageRequest)
+        LocalDateTime effectiveRangeStart = rangeStart;
+        return getPage(from, size, toSort(sort), pageable -> eventRepository.findAll(EventSpecification.byPublicFilters(
+                        text, categories, paid, effectiveRangeStart, rangeEnd), pageable))
                 .stream()
                 // TODO: Person 3 will provide confirmed requests; Person 4 will provide views.
                 .map(event -> EventMapper.toEventShortDto(event, 0, 0))
@@ -170,7 +172,7 @@ public class EventServiceImpl implements EventService {
     public EventFullDto getPublicEvent(Long eventId) {
         Event event = getEvent(eventId);
         if (event.getState() != EventState.PUBLISHED) {
-            throw new NotFoundException("Event with id=" + eventId + " was not found");
+            throw new NotFoundException("Событие с идентификатором " + eventId + " не найдено.");
         }
         // TODO: Person 3 will provide confirmed requests; Person 4 will provide views and endpoint hit.
         return EventMapper.toEventFullDto(event, 0, 0);
@@ -185,19 +187,31 @@ public class EventServiceImpl implements EventService {
 
     private void validateEventDate(LocalDateTime eventDate) {
         if (eventDate.isBefore(LocalDateTime.now().plusHours(EVENT_LEAD_TIME_HOURS))) {
-            throw new ConflictException("Field: eventDate. Error: must be at least two hours from now");
+            throw new ValidationException("Дата события должна быть не ранее чем через два часа от текущего момента.");
         }
     }
 
     private void validateAdminEventDate(LocalDateTime eventDate) {
         if (eventDate.isBefore(LocalDateTime.now().plusHours(ADMIN_EVENT_LEAD_TIME_HOURS))) {
-            throw new ConflictException("Event date must be at least one hour from now");
+            throw new ValidationException("Дата события должна быть не ранее чем через один час от текущего момента.");
         }
+    }
+
+    private List<Event> getPage(int from, int size, Sort sort, Function<PageRequest, Page<Event>> loader) {
+        if (from < 0 || size < 1) {
+            throw new ValidationException("Параметр from не может быть отрицательным, а size должен быть положительным.");
+        }
+        long requested = (long) from + size;
+        int fetchSize = requested > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) requested;
+        return loader.apply(PageRequest.of(0, fetchSize, sort)).getContent().stream()
+                .skip(from)
+                .limit(size)
+                .toList();
     }
 
     private void validateRange(LocalDateTime rangeStart, LocalDateTime rangeEnd) {
         if (rangeStart != null && rangeEnd != null && rangeStart.isAfter(rangeEnd)) {
-            throw new ValidationException("rangeStart must not be after rangeEnd");
+            throw new ValidationException("Дата rangeStart не может быть позже даты rangeEnd.");
         }
     }
 
@@ -205,43 +219,42 @@ public class EventServiceImpl implements EventService {
         if (sort == PublicEventSort.EVENT_DATE) {
             return Sort.by(Sort.Direction.ASC, "eventDate");
         }
-        // Sorting by views will be completed with the stats integration.
         return Sort.unsorted();
     }
 
     private void updateAdminState(Event event, EventAdminStateAction stateAction) {
         if (stateAction == EventAdminStateAction.PUBLISH_EVENT) {
             if (event.getState() != EventState.PENDING) {
-                throw new ConflictException("Cannot publish the event because it's not in the right state: "
-                        + event.getState());
+                throw new ConflictException("Нельзя опубликовать событие: оно должно находиться в состоянии ожидания "
+                        + "модерации. Текущее состояние: " + event.getState() + ".");
             }
             event.setState(EventState.PUBLISHED);
             event.setPublishedOn(LocalDateTime.now());
             return;
         }
         if (event.getState() == EventState.PUBLISHED) {
-            throw new ConflictException("Cannot reject the event because it has already been published");
+            throw new ConflictException("Нельзя отменить уже опубликованное событие.");
         }
         event.setState(EventState.CANCELED);
     }
 
     private User getUser(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Пользователь с идентификатором " + userId + " не найден."));
     }
 
     private Category getCategory(Long categoryId) {
         return categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new NotFoundException("Category with id=" + categoryId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Категория с идентификатором " + categoryId + " не найдена."));
     }
 
     private Event getUserEventOrThrow(Long userId, Long eventId) {
         return eventRepository.findByIdAndInitiatorId(eventId, userId)
-                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Событие с идентификатором " + eventId + " не найдено."));
     }
 
     private Event getEvent(Long eventId) {
         return eventRepository.findById(eventId)
-                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Событие с идентификатором " + eventId + " не найдено."));
     }
 }

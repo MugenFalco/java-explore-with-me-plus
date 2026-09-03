@@ -17,33 +17,33 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class NewEventDto {
 
-    @NotBlank
-    @Size(min = 20, max = 2000)
+    @NotBlank(message = "не должно быть пустым")
+    @Size(min = 20, max = 2000, message = "длина должна быть от 20 до 2000 символов")
     private String annotation;
 
-    @NotNull
+    @NotNull(message = "должно быть указано")
     private Long category;
 
-    @NotBlank
-    @Size(min = 20, max = 7000)
+    @NotBlank(message = "не должно быть пустым")
+    @Size(min = 20, max = 7000, message = "длина должна быть от 20 до 7000 символов")
     private String description;
 
-    @NotNull
+    @NotNull(message = "должно быть указано")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime eventDate;
 
-    @NotNull
+    @NotNull(message = "должно быть указано")
     @Valid
     private LocationDto location;
 
     private Boolean paid = false;
 
-    @PositiveOrZero
+    @PositiveOrZero(message = "должно быть неотрицательным")
     private Integer participantLimit = 0;
 
     private Boolean requestModeration = true;
 
-    @NotBlank
-    @Size(min = 3, max = 120)
+    @NotBlank(message = "не должно быть пустым")
+    @Size(min = 3, max = 120, message = "длина должна быть от 3 до 120 символов")
     private String title;
 }

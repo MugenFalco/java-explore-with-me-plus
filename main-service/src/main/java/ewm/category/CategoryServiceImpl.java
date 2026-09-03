@@ -26,7 +26,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     public CategoryDto create(NewCategoryDto dto) {
         if (categoryRepository.existsByName(dto.getName())) {
-            throw new ConflictException("could not execute statement; constraint [uq_category_name]");
+            throw new ConflictException("Категория с таким названием уже существует.");
         }
         Category saved = categoryRepository.save(CategoryMapper.toCategory(dto));
         log.info("Создана категория с id {}", saved.getId());
@@ -39,7 +39,7 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = findOrThrow(catId);
 
         if (categoryRepository.existsByNameAndIdNot(dto.getName(), catId)) {
-            throw new ConflictException("could not execute statement; constraint [uq_category_name]");
+            throw new ConflictException("Категория с таким названием уже существует.");
         }
 
         category.setName(dto.getName());
@@ -52,7 +52,7 @@ public class CategoryServiceImpl implements CategoryService {
     public void delete(Long catId) {
         findOrThrow(catId);
         if (eventRepository.existsByCategoryId(catId)) {
-            throw new ConflictException("The category is not empty");
+            throw new ConflictException("Невозможно удалить категорию: с ней связаны события.");
         }
         categoryRepository.deleteById(catId);
         log.info("Удалена категория с id {}", catId);
@@ -72,6 +72,6 @@ public class CategoryServiceImpl implements CategoryService {
 
     private Category findOrThrow(Long catId) {
         return categoryRepository.findById(catId)
-                .orElseThrow(() -> new NotFoundException("Category with id=" + catId + " was not found"));
+                .orElseThrow(() -> new NotFoundException("Категория с идентификатором " + catId + " не найдена."));
     }
 }

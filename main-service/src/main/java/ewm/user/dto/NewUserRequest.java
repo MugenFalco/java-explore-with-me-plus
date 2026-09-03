@@ -12,12 +12,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class NewUserRequest {
 
-    @NotBlank
-    @Size(min = 2, max = 250)
+    @NotBlank(message = "не должно быть пустым")
+    @Size(min = 2, max = 250, message = "длина должна быть от 2 до 250 символов")
     private String name;
 
-    @NotBlank
-    @Email
-    @Size(min = 6, max = 254)
+    @NotBlank(message = "не должно быть пустым")
+    @Email(message = "должен иметь корректный формат")
+    @Size(min = 6, max = 254, message = "длина должна быть от 6 до 254 символов")
     private String email;
 }
