@@ -3,6 +3,7 @@ package ewm.event.entity;
 import ewm.event.dto.AdminEventSearchParams;
 import ewm.event.dto.PublicEventSearchParams;
 import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +15,7 @@ public final class EventSpecification {
 
     public static Specification<Event> byAdminFilters(AdminEventSearchParams searchParams) {
         return (root, query, builder) -> {
-            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            List<Predicate> predicates = new ArrayList<>();
             if (searchParams.getUsers() != null && !searchParams.getUsers().isEmpty()) {
                 predicates.add(root.get("initiator").get("id").in(searchParams.getUsers()));
             }
@@ -30,13 +31,13 @@ public final class EventSpecification {
             if (searchParams.getRangeEnd() != null) {
                 predicates.add(builder.lessThanOrEqualTo(root.get("eventDate"), searchParams.getRangeEnd()));
             }
-            return builder.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+            return builder.and(predicates.toArray(new Predicate[0]));
         };
     }
 
     public static Specification<Event> byPublicFilters(PublicEventSearchParams searchParams) {
         return (root, query, builder) -> {
-            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            List<Predicate> predicates = new ArrayList<>();
             predicates.add(builder.equal(root.get("state"), EventState.PUBLISHED));
             if (searchParams.getText() != null && !searchParams.getText().isBlank()) {
                 String pattern = "%" + searchParams.getText().toLowerCase() + "%";
@@ -57,7 +58,7 @@ public final class EventSpecification {
             if (searchParams.getRangeEnd() != null) {
                 predicates.add(builder.lessThanOrEqualTo(root.get("eventDate"), searchParams.getRangeEnd()));
             }
-            return builder.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+            return builder.and(predicates.toArray(new Predicate[0]));
         };
     }
 }

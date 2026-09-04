@@ -190,26 +190,30 @@ public class EventServiceImpl implements EventService {
 
     private void validateEventDate(LocalDateTime eventDate) {
         if (eventDate.isBefore(LocalDateTime.now().plusHours(EVENT_LEAD_TIME_HOURS))) {
-            throw new ValidationException("Дата события должна быть не ранее чем через два часа от текущего момента.");
+            throw new ConflictException("Дата события должна быть не ранее чем через два часа от текущего момента.");
         }
     }
 
     private void validateAdminEventDate(LocalDateTime eventDate) {
         if (eventDate.isBefore(LocalDateTime.now().plusHours(ADMIN_EVENT_LEAD_TIME_HOURS))) {
-            throw new ValidationException("Дата события должна быть не ранее чем через один час от текущего момента.");
+            throw new ConflictException("Дата события должна быть не ранее чем через один час от текущего момента.");
         }
     }
 
     private List<Event> getPage(EventPage page, Function<PageRequest, Page<Event>> loader) {
         if (page.from < 0 || page.size < 1) {
-            throw new ValidationException("Параметр from не может быть отрицательным, а size должен быть положительным.");
+            throw new ValidationException(
+                    "Параметр from не может быть отрицательным, а size должен быть положительным."
+            );
         }
-        long requested = (long) page.from + page.size;
-        int fetchSize = requested > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) requested;
-        return loader.apply(PageRequest.of(0, fetchSize, page.sort)).getContent().stream()
-                .skip(page.from)
-                .limit(page.size)
-                .toList();
+
+        return loader.apply(
+                PageRequest.of(
+                        page.from / page.size,
+                        page.size,
+                        page.sort
+                )
+        ).getContent();
     }
 
     private void validateRange(LocalDateTime rangeStart, LocalDateTime rangeEnd) {
