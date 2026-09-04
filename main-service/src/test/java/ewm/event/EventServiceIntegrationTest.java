@@ -14,7 +14,6 @@ import ewm.event.entity.EventState;
 import ewm.event.repository.EventRepository;
 import ewm.event.service.EventService;
 import ewm.exception.ConflictException;
-import ewm.exception.ValidationException;
 import ewm.user.User;
 import ewm.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
