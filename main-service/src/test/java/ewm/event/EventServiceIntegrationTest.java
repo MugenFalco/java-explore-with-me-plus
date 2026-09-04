@@ -13,7 +13,7 @@ import ewm.event.dto.UpdateEventAdminRequest;
 import ewm.event.entity.EventState;
 import ewm.event.repository.EventRepository;
 import ewm.event.service.EventService;
-import ewm.exception.ValidationException;
+import ewm.exception.ConflictException;
 import ewm.user.User;
 import ewm.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,7 +83,7 @@ class EventServiceIntegrationTest {
     @Test
     void shouldRejectEventCreationTooCloseToCurrentTime() {
         assertThatThrownBy(() -> eventService.create(userId, newEvent(LocalDateTime.now().plusMinutes(30))))
-                .isInstanceOf(ValidationException.class);
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test
