@@ -28,10 +28,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import stats.client.StatsClient;
+import stats.dto.ViewStatsDto;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -40,6 +44,9 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class EventServiceImpl implements EventService {
 
+    private final StatsClient statsClient;
+
+    private static final LocalDateTime STATS_RANGE_START = LocalDateTime.of(2000, 1, 1, 0, 0);
     private static final int EVENT_LEAD_TIME_HOURS = 2;
     private static final int ADMIN_EVENT_LEAD_TIME_HOURS = 1;
 
@@ -188,6 +195,20 @@ public class EventServiceImpl implements EventService {
         return EventMapper.toEventFullDto(event, metricsFor(eventId));
     }
 
+
+    @Override
+    public Set<Event> getEventsByIds(Set<Long> eventIds) {
+        if (eventIds == null || eventIds.isEmpty()) return Set.of();
+
+        List<Event> foundEvents = eventRepository.findAllById(eventIds);
+
+        if (foundEvents.size() != eventIds.size()) {
+            throw new NotFoundException("Один или несколько запрошенных событий не найдены в базе данных");
+        }
+
+        return new HashSet<>(foundEvents);
+    }
+
     private EventState toState(EventUserStateAction stateAction) {
         return switch (stateAction) {
             case SEND_TO_REVIEW -> EventState.PENDING;
@@ -275,7 +296,7 @@ public class EventServiceImpl implements EventService {
     }
 
     private EventMetrics metricsFor(Long eventId) {
-        return new EventMetrics(requestService.countConfirmed(eventId), 0);
+        return new EventMetrics(requestService.countConfirmed(eventId), viewsFor(eventId));
     }
 
     private Map<Long, EventMetrics> metricsFor(List<Long> eventIds) {
@@ -283,9 +304,10 @@ public class EventServiceImpl implements EventService {
             return Map.of();
         }
         Map<Long, Long> confirmedByEvent = requestService.countConfirmedForEvents(eventIds);
+        Map<Long, Long> viewsByEvent = viewsFor(eventIds);
         return eventIds.stream().collect(Collectors.toMap(
                 id -> id,
-                id -> new EventMetrics(confirmedByEvent.getOrDefault(id, 0L), 0)));
+                id -> new EventMetrics(confirmedByEvent.getOrDefault(id, 0L), viewsByEvent.getOrDefault(id, 0L))));
     }
 
     private static final class EventPage {
@@ -299,5 +321,23 @@ public class EventServiceImpl implements EventService {
             this.size = pageRequest.getSize();
             this.sort = sort;
         }
+    }
+
+    private long viewsFor(Long eventId) {
+        return viewsFor(List.of(eventId)).getOrDefault(eventId, 0L);
+    }
+
+    private Map<Long, Long> viewsFor(List<Long> eventIds) {
+        List<String> uris = eventIds.stream().map(this::eventUri).toList();
+        List<ViewStatsDto> stats = statsClient.getStats(STATS_RANGE_START, LocalDateTime.now(), uris, true);
+        Map<String, Long> hitsByUri = stats.stream()
+                .collect(Collectors.toMap(ViewStatsDto::getUri, ViewStatsDto::getHits));
+        return eventIds.stream().collect(Collectors.toMap(
+                id -> id,
+                id -> hitsByUri.getOrDefault(eventUri(id), 0L)));
+    }
+
+    private String eventUri(Long eventId) {
+        return "/events/" + eventId;
     }
 }
