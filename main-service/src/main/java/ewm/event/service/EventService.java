@@ -1,5 +1,6 @@
 package ewm.event.service;
 
+import ewm.event.entity.Event;
 import ewm.event.entity.UserEventPath;
 import ewm.event.dto.EventFullDto;
 import ewm.event.dto.EventShortDto;
@@ -11,6 +12,7 @@ import ewm.event.dto.UpdateEventUserRequest;
 import ewm.common.dto.PageRequestDto;
 
 import java.util.List;
+import java.util.Set;
 
 public interface EventService {
 
@@ -29,4 +31,6 @@ public interface EventService {
     List<EventShortDto> getPublicEvents(PublicEventSearchParams searchParams);
 
     EventFullDto getPublicEvent(Long eventId);
+
+    Set<Event> getEventsByIds(Set<Long> eventIds);
 }

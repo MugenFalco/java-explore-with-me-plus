@@ -11,6 +11,8 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class EventMapper {
@@ -65,6 +67,12 @@ public final class EventMapper {
                 event.getTitle(),
                 metrics.views()
         );
+    }
+
+    public static Set<EventShortDto> toEventShortDto(Set<Event> events) {
+        return events.stream()
+                .map(event -> toEventShortDto(event, EventMetrics.EMPTY))
+                .collect(Collectors.toSet());
     }
 
     public static Location toLocation(LocationDto dto) {

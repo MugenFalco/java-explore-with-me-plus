@@ -29,7 +29,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 @Service
@@ -179,6 +181,19 @@ public class EventServiceImpl implements EventService {
         }
         // TODO: Person 3 will provide confirmed requests; Person 4 will provide views and endpoint hit.
         return EventMapper.toEventFullDto(event, EventMetrics.EMPTY);
+    }
+
+    @Override
+    public Set<Event> getEventsByIds(Set<Long> eventIds) {
+        if (eventIds == null || eventIds.isEmpty()) return Set.of();
+
+        List<Event> foundEvents = eventRepository.findAllById(eventIds);
+
+        if (foundEvents.size() != eventIds.size()) {
+            throw new NotFoundException("Один или несколько запрошенных событий не найдены в базе данных");
+        }
+
+        return new HashSet<>(foundEvents);
     }
 
     private EventState toState(EventUserStateAction stateAction) {
