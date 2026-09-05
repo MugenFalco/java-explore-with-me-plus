@@ -3,7 +3,6 @@ package ewm.request.service;
 import ewm.event.entity.Event;
 import ewm.event.entity.EventState;
 import ewm.event.service.EventLookupService;
-import ewm.event.service.EventService;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
 import ewm.request.dto.*;
