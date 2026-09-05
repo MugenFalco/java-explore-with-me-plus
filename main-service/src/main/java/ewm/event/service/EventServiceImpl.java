@@ -19,6 +19,7 @@ import ewm.event.repository.EventRepository;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
 import ewm.exception.ValidationException;
+import ewm.request.service.RequestService;
 import ewm.user.User;
 import ewm.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -29,10 +30,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,14 +46,16 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final UserService userService;
     private final CategoryService categoryService;
+    private final RequestService requestService;
 
     @Override
     public List<EventShortDto> getUserEvents(Long userId, PageRequestDto pageRequest) {
         getUser(userId);
-        return getPage(new EventPage(pageRequest, Sort.unsorted()),
-                pageable -> eventRepository.findAllByInitiatorId(userId, pageable))
-                .stream()
-                .map(event -> EventMapper.toEventShortDto(event, EventMetrics.EMPTY))
+        List<Event> events = getPage(new EventPage(pageRequest, Sort.unsorted()),
+                pageable -> eventRepository.findAllByInitiatorId(userId, pageable));
+        Map<Long, EventMetrics> metrics = metricsFor(eventIdsOf(events));
+        return events.stream()
+                .map(event -> EventMapper.toEventShortDto(event, metrics.get(event.getId())))
                 .toList();
     }
 
@@ -63,12 +66,14 @@ public class EventServiceImpl implements EventService {
         User initiator = getUser(userId);
         Category category = getCategory(dto.getCategory());
         Event event = EventMapper.toEvent(dto, new EventCreationContext(category, initiator));
-        return EventMapper.toEventFullDto(eventRepository.save(event), EventMetrics.EMPTY);
+        Event saved = eventRepository.save(event);
+        return EventMapper.toEventFullDto(saved, metricsFor(saved.getId()));
     }
 
     @Override
     public EventFullDto getUserEvent(Long userId, Long eventId) {
-        return EventMapper.toEventFullDto(getUserEventOrThrow(userId, eventId), EventMetrics.EMPTY);
+        Event event = getUserEventOrThrow(userId, eventId);
+        return EventMapper.toEventFullDto(event, metricsFor(eventId));
     }
 
     @Override
@@ -109,15 +114,16 @@ public class EventServiceImpl implements EventService {
         if (request.getTitle() != null) {
             event.setTitle(request.getTitle());
         }
-        return EventMapper.toEventFullDto(event, EventMetrics.EMPTY);
+        return EventMapper.toEventFullDto(event, metricsFor(event.getId()));
     }
 
     @Override
     public List<EventFullDto> getAdminEvents(AdminEventSearchParams searchParams) {
-        return getPage(new EventPage(searchParams, Sort.unsorted()), pageable -> eventRepository.findAll(
-                        EventSpecification.byAdminFilters(searchParams), pageable))
-                .stream()
-                .map(event -> EventMapper.toEventFullDto(event, EventMetrics.EMPTY))
+        List<Event> events = getPage(new EventPage(searchParams, Sort.unsorted()), pageable -> eventRepository.findAll(
+                EventSpecification.byAdminFilters(searchParams), pageable));
+        Map<Long, EventMetrics> metrics = metricsFor(eventIdsOf(events));
+        return events.stream()
+                .map(event -> EventMapper.toEventFullDto(event, metrics.get(event.getId())))
                 .toList();
     }
 
@@ -156,7 +162,7 @@ public class EventServiceImpl implements EventService {
         if (request.getTitle() != null) {
             event.setTitle(request.getTitle());
         }
-        return EventMapper.toEventFullDto(event, EventMetrics.EMPTY);
+        return EventMapper.toEventFullDto(event, metricsFor(event.getId()));
     }
 
     @Override
@@ -165,11 +171,11 @@ public class EventServiceImpl implements EventService {
         if (searchParams.getRangeStart() == null && searchParams.getRangeEnd() == null) {
             searchParams.setRangeStart(LocalDateTime.now());
         }
-        return getPage(new EventPage(searchParams, toSort(searchParams.getSort())), pageable -> eventRepository.findAll(
-                        EventSpecification.byPublicFilters(searchParams), pageable))
-                .stream()
-                // TODO: Person 3 will provide confirmed requests; Person 4 will provide views.
-                .map(event -> EventMapper.toEventShortDto(event, EventMetrics.EMPTY))
+        List<Event> events = getPage(new EventPage(searchParams, toSort(searchParams.getSort())),
+                pageable -> eventRepository.findAll(EventSpecification.byPublicFilters(searchParams), pageable));
+        Map<Long, EventMetrics> metrics = metricsFor(eventIdsOf(events));
+        return events.stream()
+                .map(event -> EventMapper.toEventShortDto(event, metrics.get(event.getId())))
                 .toList();
     }
 
@@ -179,21 +185,7 @@ public class EventServiceImpl implements EventService {
         if (event.getState() != EventState.PUBLISHED) {
             throw new NotFoundException("Событие с идентификатором " + eventId + " не найдено.");
         }
-        // TODO: Person 3 will provide confirmed requests; Person 4 will provide views and endpoint hit.
-        return EventMapper.toEventFullDto(event, EventMetrics.EMPTY);
-    }
-
-    @Override
-    public Set<Event> getEventsByIds(Set<Long> eventIds) {
-        if (eventIds == null || eventIds.isEmpty()) return Set.of();
-
-        List<Event> foundEvents = eventRepository.findAllById(eventIds);
-
-        if (foundEvents.size() != eventIds.size()) {
-            throw new NotFoundException("Один или несколько запрошенных событий не найдены в базе данных");
-        }
-
-        return new HashSet<>(foundEvents);
+        return EventMapper.toEventFullDto(event, metricsFor(eventId));
     }
 
     private EventState toState(EventUserStateAction stateAction) {
@@ -276,6 +268,24 @@ public class EventServiceImpl implements EventService {
     private Event getEvent(Long eventId) {
         return eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Событие с идентификатором " + eventId + " не найдено."));
+    }
+
+    private List<Long> eventIdsOf(List<Event> events) {
+        return events.stream().map(Event::getId).toList();
+    }
+
+    private EventMetrics metricsFor(Long eventId) {
+        return new EventMetrics(requestService.countConfirmed(eventId), 0);
+    }
+
+    private Map<Long, EventMetrics> metricsFor(List<Long> eventIds) {
+        if (eventIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> confirmedByEvent = requestService.countConfirmedForEvents(eventIds);
+        return eventIds.stream().collect(Collectors.toMap(
+                id -> id,
+                id -> new EventMetrics(confirmedByEvent.getOrDefault(id, 0L), 0)));
     }
 
     private static final class EventPage {
