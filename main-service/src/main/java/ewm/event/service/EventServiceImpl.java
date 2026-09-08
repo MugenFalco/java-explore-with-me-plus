@@ -29,7 +29,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import stats.client.StatsClient;
-import stats.dto.ViewStatsDto;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -229,11 +228,6 @@ public class EventServiceImpl implements EventService {
     }
 
     private List<Event> getPage(EventPage page, Function<PageRequest, Page<Event>> loader) {
-        if (page.from < 0 || page.size < 1) {
-            throw new ValidationException(
-                    "Параметр from не может быть отрицательным, а size должен быть положительным."
-            );
-        }
 
         return loader.apply(
                 PageRequest.of(
@@ -328,16 +322,12 @@ public class EventServiceImpl implements EventService {
     }
 
     private Map<Long, Long> viewsFor(List<Long> eventIds) {
-        List<String> uris = eventIds.stream().map(this::eventUri).toList();
-        List<ViewStatsDto> stats = statsClient.getStats(STATS_RANGE_START, LocalDateTime.now(), uris, true);
-        Map<String, Long> hitsByUri = stats.stream()
-                .collect(Collectors.toMap(ViewStatsDto::getUri, ViewStatsDto::getHits));
-        return eventIds.stream().collect(Collectors.toMap(
-                id -> id,
-                id -> hitsByUri.getOrDefault(eventUri(id), 0L)));
+        return statsClient.getEventViews(
+                STATS_RANGE_START,
+                LocalDateTime.now(),
+                eventIds,
+                true
+        );
     }
 
-    private String eventUri(Long eventId) {
-        return "/events/" + eventId;
-    }
 }

@@ -25,7 +25,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
-@TestPropertySource(properties = "client.url=http://localhost:0")
+@TestPropertySource(properties = {
+        "client.url=http://localhost:0",
+        "client.app-name=ewm-main-service"
+})
 class StatsControllerTest {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");

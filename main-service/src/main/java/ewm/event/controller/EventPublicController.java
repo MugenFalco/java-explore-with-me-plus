@@ -13,16 +13,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import stats.client.StatsClient;
-import stats.dto.EndpointHitDto;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
 @RequestMapping("/events")
 @RequiredArgsConstructor
 public class EventPublicController {
-    private static final String APP_NAME = "ewm-main-service";
 
     private final EventService eventService;
     private final StatsClient statsClient;
@@ -41,7 +38,9 @@ public class EventPublicController {
     }
 
     private void recordHit(HttpServletRequest request) {
-        statsClient.hit(new EndpointHitDto(APP_NAME, request.getRequestURI(),
-                request.getRemoteAddr(), LocalDateTime.now()));
+        statsClient.hit(
+                request.getRequestURI(),
+                request.getRemoteAddr()
+        );
     }
 }
