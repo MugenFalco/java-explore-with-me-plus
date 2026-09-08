@@ -7,4 +7,6 @@ public interface EventLookupService {
     Event getEntityById(Long eventId);
 
     Event getOwnedEventById(Long userId, Long eventId);
+
+    boolean existsByCategoryId(Long categoryId);
 }

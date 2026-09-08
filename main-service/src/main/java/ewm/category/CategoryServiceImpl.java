@@ -2,11 +2,11 @@ package ewm.category;
 
 import ewm.category.dto.CategoryDto;
 import ewm.category.dto.NewCategoryDto;
+import ewm.event.service.EventLookupService;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,13 +20,11 @@ import java.util.List;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final EventLookupService eventLookupService;
 
     @Override
     @Transactional
     public CategoryDto create(NewCategoryDto dto) {
-        if (categoryRepository.existsByName(dto.getName())) {
-            throw new ConflictException("Категория с таким названием уже существует.");
-        }
         Category saved = categoryRepository.save(CategoryMapper.toCategory(dto));
         log.info("Создана категория с id {}", saved.getId());
         return CategoryMapper.toCategoryDto(saved);
@@ -36,12 +34,8 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     public CategoryDto update(Long catId, CategoryDto dto) {
         Category category = findOrThrow(catId);
-
-        if (categoryRepository.existsByNameAndIdNot(dto.getName(), catId)) {
-            throw new ConflictException("Категория с таким названием уже существует.");
-        }
-
         category.setName(dto.getName());
+        categoryRepository.flush();
         log.info("Обновлена категория с id {}", catId);
         return CategoryMapper.toCategoryDto(category);
     }
@@ -49,13 +43,11 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public void delete(Long catId) {
-        Category category = findOrThrow(catId);
-        try {
-            categoryRepository.delete(category);
-            categoryRepository.flush();
-        } catch (DataIntegrityViolationException exception) {
+        findOrThrow(catId);
+        if (eventLookupService.existsByCategoryId(catId)) {
             throw new ConflictException("Невозможно удалить категорию: с ней связаны события.");
         }
+        categoryRepository.deleteById(catId);
         log.info("Удалена категория с id {}", catId);
     }
 

@@ -25,4 +25,9 @@ public class EventLookupServiceImpl implements EventLookupService {
         return eventRepository.findByIdAndInitiatorId(eventId, userId)
                 .orElseThrow(() -> new NotFoundException("Событие с идентификатором " + eventId + " не найдено."));
     }
+
+    @Override
+    public boolean existsByCategoryId(Long categoryId) {
+        return eventRepository.existsByCategoryId(categoryId);
+    }
 }
