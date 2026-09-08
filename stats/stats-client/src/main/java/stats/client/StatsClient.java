@@ -12,6 +12,8 @@ import stats.dto.ViewStatsDto;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -21,14 +23,24 @@ public class StatsClient {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final RestClient restClient;
+    private final String appName;
 
-    public StatsClient(@Value("${client.url}") String serverUrl) {
+    public StatsClient(@Value("${client.url}") String serverUrl,
+                       @Value("${client.app-name}") String appName) {
         this.restClient = RestClient.builder()
                 .baseUrl(serverUrl)
                 .build();
+        this.appName = appName;
     }
 
-    public void hit(EndpointHitDto hitDto) {
+    public void hit(String uri, String ip) {
+        EndpointHitDto hitDto = new EndpointHitDto(
+                appName,
+                uri,
+                ip,
+                LocalDateTime.now()
+        );
+
         try {
             restClient.post()
                     .uri("/hit")
@@ -37,7 +49,7 @@ public class StatsClient {
                     .retrieve()
                     .toBodilessEntity();
         } catch (RestClientException e) {
-            log.warn("Не удалось отправить статистику по uri {}: {}", hitDto.getUri(), e.getMessage());
+            log.warn("Не удалось отправить статистику по uri {}: {}", uri, e.getMessage());
         }
     }
 
@@ -63,5 +75,32 @@ public class StatsClient {
             log.warn("Не удалось получить статистику: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    public Map<Long, Long> getEventViews(LocalDateTime start,
+                                         LocalDateTime end,
+                                         List<Long> eventIds,
+                                         boolean unique) {
+
+        List<String> eventUris = eventIds.stream()
+                .map(eventId -> "/events/" + eventId)
+                .toList();
+
+        List<ViewStatsDto> stats = getStats(start, end, eventUris, unique);
+
+        Map<String, Long> hitsByUri = stats.stream()
+                .collect(Collectors.toMap(
+                        ViewStatsDto::getUri,
+                        ViewStatsDto::getHits
+                ));
+
+        return eventIds.stream()
+                .collect(Collectors.toMap(
+                        eventId -> eventId,
+                        eventId -> hitsByUri.getOrDefault(
+                                "/events/" + eventId,
+                                0L
+                        )
+                ));
     }
 }
