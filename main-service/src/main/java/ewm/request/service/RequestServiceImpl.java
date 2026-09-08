@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -55,13 +54,10 @@ public class RequestServiceImpl implements RequestService {
             }
         }
 
-        Request request = new Request();
-        request.setEvent(event);
-        request.setRequester(requester);
-        request.setCreated(LocalDateTime.now());
-        request.setStatus(limit == 0 || !event.isRequestModeration()
+        RequestStatus status = limit == 0 || !event.isRequestModeration()
                 ? RequestStatus.CONFIRMED
-                : RequestStatus.PENDING);
+                : RequestStatus.PENDING;
+        Request request = RequestMapper.toEntity(event, requester, status);
 
         return RequestMapper.toDto(requestRepository.save(request));
     }
@@ -96,7 +92,12 @@ public class RequestServiceImpl implements RequestService {
     public EventRequestStatusUpdateResult updateStatus(Long userId, Long eventId,
                                                        EventRequestStatusUpdateRequest updateRequest) {
         Event event = eventLookupService.getOwnedEventById(userId, eventId);
+
         List<Request> requests = requestRepository.findAllById(updateRequest.getRequestIds());
+
+        if (requests.size() != updateRequest.getRequestIds().size()) {
+            throw new NotFoundException("Один или несколько запросов на участие не найдены.");
+        }
 
         for (Request r : requests) {
             if (!r.getEvent().getId().equals(eventId)) {
@@ -131,13 +132,6 @@ public class RequestServiceImpl implements RequestService {
                 confirmed.add(r);
                 alreadyConfirmed++;
             }
-        }
-
-        if (limit > 0 && alreadyConfirmed >= limit) {
-            requestRepository.flush();
-            List<Request> stillPending = requestRepository.findAllByEventIdAndStatus(eventId, RequestStatus.PENDING);
-            stillPending.forEach(r -> r.setStatus(RequestStatus.REJECTED));
-            rejected.addAll(stillPending);
         }
 
         return new EventRequestStatusUpdateResult(toDtoList(confirmed), toDtoList(rejected));
