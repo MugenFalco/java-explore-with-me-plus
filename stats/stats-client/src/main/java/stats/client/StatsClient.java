@@ -12,8 +12,6 @@ import stats.dto.ViewStatsDto;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -75,32 +73,5 @@ public class StatsClient {
             log.warn("Не удалось получить статистику: {}", e.getMessage());
             return List.of();
         }
-    }
-
-    public Map<Long, Long> getEventViews(LocalDateTime start,
-                                         LocalDateTime end,
-                                         List<Long> eventIds,
-                                         boolean unique) {
-
-        List<String> eventUris = eventIds.stream()
-                .map(eventId -> "/events/" + eventId)
-                .toList();
-
-        List<ViewStatsDto> stats = getStats(start, end, eventUris, unique);
-
-        Map<String, Long> hitsByUri = stats.stream()
-                .collect(Collectors.toMap(
-                        ViewStatsDto::getUri,
-                        ViewStatsDto::getHits
-                ));
-
-        return eventIds.stream()
-                .collect(Collectors.toMap(
-                        eventId -> eventId,
-                        eventId -> hitsByUri.getOrDefault(
-                                "/events/" + eventId,
-                                0L
-                        )
-                ));
     }
 }

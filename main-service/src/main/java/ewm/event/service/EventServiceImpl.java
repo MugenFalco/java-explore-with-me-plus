@@ -29,6 +29,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import stats.client.StatsClient;
+import stats.dto.ViewStatsDto;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -322,12 +323,26 @@ public class EventServiceImpl implements EventService {
     }
 
     private Map<Long, Long> viewsFor(List<Long> eventIds) {
-        return statsClient.getEventViews(
-                STATS_RANGE_START,
-                LocalDateTime.now(),
-                eventIds,
-                true
-        );
+        if (eventIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<String> uris = eventIds.stream()
+                .map(EventServiceImpl::eventUri)
+                .toList();
+
+        Map<String, Long> hitsByUri = statsClient.getStats(STATS_RANGE_START, LocalDateTime.now(), uris, true)
+                .stream()
+                .collect(Collectors.toMap(ViewStatsDto::getUri, ViewStatsDto::getHits));
+
+        return eventIds.stream()
+                .collect(Collectors.toMap(
+                        id -> id,
+                        id -> hitsByUri.getOrDefault(eventUri(id), 0L)));
+    }
+
+    private static String eventUri(Long eventId) {
+        return "/events/" + eventId;
     }
 
 }
