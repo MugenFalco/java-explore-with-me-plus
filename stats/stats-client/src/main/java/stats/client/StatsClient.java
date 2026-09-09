@@ -1,0 +1,77 @@
+package stats.client;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import stats.dto.EndpointHitDto;
+import stats.dto.ViewStatsDto;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
+@Slf4j
+@Component
+public class StatsClient {
+
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private final RestClient restClient;
+    private final String appName;
+
+    public StatsClient(@Value("${client.url}") String serverUrl,
+                       @Value("${client.app-name}") String appName) {
+        this.restClient = RestClient.builder()
+                .baseUrl(serverUrl)
+                .build();
+        this.appName = appName;
+    }
+
+    public void hit(String uri, String ip) {
+        EndpointHitDto hitDto = new EndpointHitDto(
+                appName,
+                uri,
+                ip,
+                LocalDateTime.now()
+        );
+
+        try {
+            restClient.post()
+                    .uri("/hit")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(hitDto)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            log.warn("Не удалось отправить статистику по uri {}: {}", uri, e.getMessage());
+        }
+    }
+
+    public List<ViewStatsDto> getStats(LocalDateTime start, LocalDateTime end,
+                                       List<String> uris, boolean unique) {
+        try {
+            ViewStatsDto[] result = restClient.get()
+                    .uri(uriBuilder -> {
+                        uriBuilder.path("/stats")
+                                .queryParam("start", start.format(DATE_FORMATTER))
+                                .queryParam("end", end.format(DATE_FORMATTER))
+                                .queryParam("unique", unique);
+                        if (uris != null && !uris.isEmpty()) {
+                            uriBuilder.queryParam("uris", String.join(",", uris));
+                        }
+                        return uriBuilder.build();
+                    })
+                    .retrieve()
+                    .body(ViewStatsDto[].class);
+
+            return result == null ? List.of() : List.of(result);
+        } catch (RestClientException e) {
+            log.warn("Не удалось получить статистику: {}", e.getMessage());
+            return List.of();
+        }
+    }
+}
