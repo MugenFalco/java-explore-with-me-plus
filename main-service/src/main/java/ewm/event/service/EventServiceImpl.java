@@ -32,10 +32,7 @@ import stats.client.StatsClient;
 import stats.dto.ViewStatsDto;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -181,6 +178,15 @@ public class EventServiceImpl implements EventService {
         List<Event> events = getPage(new EventPage(searchParams, toSort(searchParams.getSort())),
                 pageable -> eventRepository.findAll(EventSpecification.byPublicFilters(searchParams), pageable));
         Map<Long, EventMetrics> metrics = metricsFor(eventIdsOf(events));
+
+        if (searchParams.getSort() == PublicEventSort.VIEWS) {
+            events = events.stream()
+                    .sorted(Comparator.comparingLong(
+                                    (Event event) -> metrics.getOrDefault(event.getId(), EventMetrics.EMPTY).views())
+                            .reversed())
+                    .toList();
+        }
+
         return events.stream()
                 .map(event -> EventMapper.toEventShortDto(event, metrics.get(event.getId())))
                 .toList();
@@ -246,10 +252,10 @@ public class EventServiceImpl implements EventService {
     }
 
     private Sort toSort(PublicEventSort sort) {
-        if (sort == PublicEventSort.EVENT_DATE) {
-            return Sort.by(Sort.Direction.ASC, "eventDate");
+        if (sort == PublicEventSort.VIEWS) {
+            return Sort.unsorted();
         }
-        return Sort.unsorted();
+        return Sort.by(Sort.Direction.ASC, "eventDate");
     }
 
     private void updateAdminState(Event event, EventAdminStateAction stateAction) {
