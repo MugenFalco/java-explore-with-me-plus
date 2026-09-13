@@ -19,6 +19,8 @@ import ewm.event.repository.EventRepository;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
 import ewm.exception.ValidationException;
+import ewm.rating.dto.EventRatingCount;
+import ewm.rating.service.RatingService;
 import ewm.request.service.RequestService;
 import ewm.user.User;
 import ewm.user.UserService;
@@ -51,6 +53,7 @@ public class EventServiceImpl implements EventService {
     private final UserService userService;
     private final CategoryService categoryService;
     private final RequestService requestService;
+    private final RatingService ratingService;
 
     @Override
     public List<EventShortDto> getUserEvents(Long userId, PageRequestDto pageRequest) {
@@ -213,6 +216,33 @@ public class EventServiceImpl implements EventService {
         }
 
         return new HashSet<>(foundEvents);
+    }
+
+    @Override
+    public List<Long> getEventIdsByInitiator(Long userId) {
+        getUser(userId);
+        return eventRepository.findIdsByInitiatorId(userId);
+    }
+
+    @Override
+    public List<EventShortDto> getTopEvents(int size) {
+        List<Long> topEventIds = ratingService.getTopEvents(size).stream()
+                .map(EventRatingCount::getEventId)
+                .toList();
+
+        if (topEventIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Event> eventById = getEventsByIds(new HashSet<>(topEventIds)).stream()
+                .collect(Collectors.toMap(Event::getId, event -> event));
+        Map<Long, EventMetrics> metrics = metricsFor(topEventIds);
+
+        return topEventIds.stream()
+                .map(eventById::get)
+                .filter(Objects::nonNull)
+                .map(event -> EventMapper.toEventShortDto(event, metrics.get(event.getId())))
+                .toList();
     }
 
     private EventState toState(EventUserStateAction stateAction) {

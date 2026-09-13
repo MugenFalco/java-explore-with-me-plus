@@ -5,6 +5,7 @@ import ewm.event.entity.EventState;
 import ewm.event.service.EventLookupService;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
+import ewm.rating.dto.AuthorRatingCount;
 import ewm.rating.dto.EventRatingCount;
 import ewm.rating.entity.Rating;
 import ewm.rating.entity.RatingType;
@@ -14,6 +15,7 @@ import ewm.user.User;
 import ewm.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,6 +77,16 @@ public class RatingServiceImpl implements RatingService {
         }
         return ratingRepository.countByEventIds(eventIds).stream()
                 .collect(Collectors.toMap(EventRatingCount::getEventId, Function.identity()));
+    }
+
+    @Override
+    public List<EventRatingCount> getTopEvents(int size) {
+        return ratingRepository.findTopEvents(PageRequest.of(0, size));
+    }
+
+    @Override
+    public List<AuthorRatingCount> getTopAuthors(int size) {
+        return ratingRepository.findTopAuthors(PageRequest.of(0, size));
     }
 
     private void validateCanRate(Event event, Long userId) {
