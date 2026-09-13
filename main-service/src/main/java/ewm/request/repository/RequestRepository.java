@@ -28,4 +28,6 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
             + "AND r.event.id IN :eventIds "
             + "GROUP BY r.event.id")
     List<EventConfirmedCount> countConfirmedByEventIds(@Param("eventIds") List<Long> eventIds);
+
+    boolean existsByEventIdAndRequesterIdAndStatus(Long eventId, Long requesterId, RequestStatus status);
 }
