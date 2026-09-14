@@ -12,6 +12,6 @@ public class AuthorRatingCount {
     private Long eventsCount;
 
     public double average() {
-        return eventsCount == 0 ? 0.0 : (double) (likes - dislikes) / eventsCount;
+        return eventsCount == 0 ? 0.0 : Math.round((double) (likes - dislikes) / eventsCount * 100.0) / 100.0;
     }
 }
