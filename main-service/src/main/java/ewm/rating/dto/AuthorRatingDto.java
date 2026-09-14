@@ -9,6 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AuthorRatingDto {
     private Long userId;
-    private Long rating;
+    private Double rating;
     private Long ratedEventsCount;
 }

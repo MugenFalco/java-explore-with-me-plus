@@ -6,6 +6,7 @@ import ewm.event.dto.PublicEventSearchParams;
 import ewm.event.service.EventService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -35,8 +36,9 @@ public class EventPublicController {
     }
 
     @GetMapping("/top")
-    public List<EventShortDto> getTopEvents(@RequestParam(defaultValue = "10") @Positive int size) {
-        return eventService.getTopEvents(size);
+    public List<EventShortDto> getTopEvents(@RequestParam(defaultValue = "0") @Min(0) int from,
+                                            @RequestParam(defaultValue = "10") @Positive int size) {
+        return eventService.getTopEvents(from, size);
     }
 
     private void recordHit(HttpServletRequest request) {

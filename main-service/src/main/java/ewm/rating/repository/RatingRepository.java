@@ -35,10 +35,23 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
 
     @Query("SELECT new ewm.rating.dto.AuthorRatingCount(e.initiator.id, "
             + "SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.LIKE THEN 1L ELSE 0L END), "
-            + "SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.DISLIKE THEN 1L ELSE 0L END)) "
-            + "FROM Rating r JOIN r.event e "
+            + "SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.DISLIKE THEN 1L ELSE 0L END), "
+            + "COUNT(DISTINCT e.id)) "
+            + "FROM Event e LEFT JOIN Rating r ON r.event = e "
+            + "WHERE e.state = ewm.event.entity.EventState.PUBLISHED "
+            + "AND e.initiator.id = :userId "
+            + "GROUP BY e.initiator.id")
+    Optional<AuthorRatingCount> findAuthorRatingCount(@Param("userId") Long userId);
+
+    @Query("SELECT new ewm.rating.dto.AuthorRatingCount(e.initiator.id, "
+            + "SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.LIKE THEN 1L ELSE 0L END), "
+            + "SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.DISLIKE THEN 1L ELSE 0L END), "
+            + "COUNT(DISTINCT e.id)) "
+            + "FROM Event e LEFT JOIN Rating r ON r.event = e "
+            + "WHERE e.state = ewm.event.entity.EventState.PUBLISHED "
             + "GROUP BY e.initiator.id "
             + "ORDER BY (SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.LIKE THEN 1L ELSE 0L END) "
-            + "- SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.DISLIKE THEN 1L ELSE 0L END)) DESC")
+            + "- SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.DISLIKE THEN 1L ELSE 0L END)) * 1.0 "
+            + "/ COUNT(DISTINCT e.id) DESC")
     List<AuthorRatingCount> findTopAuthors(Pageable pageable);
 }

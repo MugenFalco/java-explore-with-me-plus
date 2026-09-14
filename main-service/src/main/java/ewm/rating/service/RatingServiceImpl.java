@@ -6,9 +6,11 @@ import ewm.event.service.EventLookupService;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
 import ewm.rating.dto.AuthorRatingCount;
+import ewm.rating.dto.AuthorRatingDto;
 import ewm.rating.dto.EventRatingCount;
 import ewm.rating.entity.Rating;
 import ewm.rating.entity.RatingType;
+import ewm.rating.mapper.RatingMapper;
 import ewm.rating.repository.RatingRepository;
 import ewm.request.service.RequestService;
 import ewm.user.User;
@@ -80,13 +82,23 @@ public class RatingServiceImpl implements RatingService {
     }
 
     @Override
-    public List<EventRatingCount> getTopEvents(int size) {
-        return ratingRepository.findTopEvents(PageRequest.of(0, size));
+    public List<EventRatingCount> getTopEvents(int from, int size) {
+        return ratingRepository.findTopEvents(PageRequest.of(from / size, size));
     }
 
     @Override
-    public List<AuthorRatingCount> getTopAuthors(int size) {
-        return ratingRepository.findTopAuthors(PageRequest.of(0, size));
+    public AuthorRatingDto getAuthorRating(Long userId) {
+        userService.getEntityById(userId); // 404, если пользователя нет
+        return ratingRepository.findAuthorRatingCount(userId)
+                .map(RatingMapper::toAuthorRatingDto)
+                .orElseGet(() -> RatingMapper.toAuthorRatingDto(userId, 0.0, 0L));
+    }
+
+    @Override
+    public List<AuthorRatingDto> getTopAuthors(int from, int size) {
+        return ratingRepository.findTopAuthors(PageRequest.of(from / size, size)).stream()
+                .map(RatingMapper::toAuthorRatingDto)
+                .toList();
     }
 
     private void validateCanRate(Event event, Long userId) {

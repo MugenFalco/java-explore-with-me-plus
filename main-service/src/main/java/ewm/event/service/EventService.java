@@ -34,7 +34,5 @@ public interface EventService {
 
     Set<Event> getEventsByIds(Set<Long> eventIds);
 
-    List<Long> getEventIdsByInitiator(Long userId);
-
-    List<EventShortDto> getTopEvents(int size);
+    List<EventShortDto> getTopEvents(int from, int size);
 }

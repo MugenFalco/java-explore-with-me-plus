@@ -219,14 +219,8 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<Long> getEventIdsByInitiator(Long userId) {
-        getUser(userId);
-        return eventRepository.findIdsByInitiatorId(userId);
-    }
-
-    @Override
-    public List<EventShortDto> getTopEvents(int size) {
-        List<Long> topEventIds = ratingService.getTopEvents(size).stream()
+    public List<EventShortDto> getTopEvents(int from, int size) {
+        List<Long> topEventIds = ratingService.getTopEvents(from, size).stream()
                 .map(EventRatingCount::getEventId)
                 .toList();
 

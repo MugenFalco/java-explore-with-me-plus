@@ -8,11 +8,11 @@ public final class RatingMapper {
     private RatingMapper() {
     }
 
-    public static AuthorRatingDto toAuthorRatingDto(Long userId, long rating, long ratedEventsCount) {
+    public static AuthorRatingDto toAuthorRatingDto(Long userId, double rating, long ratedEventsCount) {
         return new AuthorRatingDto(userId, rating, ratedEventsCount);
     }
 
     public static AuthorRatingDto toAuthorRatingDto(AuthorRatingCount count) {
-        return new AuthorRatingDto(count.getUserId(), count.getLikes() - count.getDislikes(), null);
+        return new AuthorRatingDto(count.getUserId(), count.average(), count.getEventsCount());
     }
 }
