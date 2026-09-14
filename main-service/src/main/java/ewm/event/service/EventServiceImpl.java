@@ -23,6 +23,7 @@ import ewm.rating.dto.EventRatingCount;
 import ewm.rating.service.RatingService;
 import ewm.request.service.RequestService;
 import ewm.user.User;
+import ewm.rating.service.RatingService;
 import ewm.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -321,7 +322,8 @@ public class EventServiceImpl implements EventService {
     }
 
     private EventMetrics metricsFor(Long eventId) {
-        return new EventMetrics(requestService.countConfirmed(eventId), viewsFor(eventId));
+        Map<Long, EventMetrics> metrics = metricsFor(List.of(eventId));
+        return metrics.get(eventId);
     }
 
     private Map<Long, EventMetrics> metricsFor(List<Long> eventIds) {
@@ -330,9 +332,24 @@ public class EventServiceImpl implements EventService {
         }
         Map<Long, Long> confirmedByEvent = requestService.countConfirmedForEvents(eventIds);
         Map<Long, Long> viewsByEvent = viewsFor(eventIds);
+        Map<Long, EventRatingCount> ratingsByEvent = ratingService.getRatingsForEvent(eventIds);
+
         return eventIds.stream().collect(Collectors.toMap(
                 id -> id,
-                id -> new EventMetrics(confirmedByEvent.getOrDefault(id, 0L), viewsByEvent.getOrDefault(id, 0L))));
+                id -> {
+                    EventRatingCount rating = ratingsByEvent.get(id);
+
+                    long likes = rating != null ? rating.getLikes() : 0L;
+                    long dislikes = rating != null ? rating.getDislikes() : 0L;
+
+                    return new EventMetrics(
+                            confirmedByEvent.getOrDefault(id, 0L),
+                            viewsByEvent.getOrDefault(id, 0L),
+                            likes,
+                            dislikes,
+                            likes - dislikes);
+                }
+        ));
     }
 
     private static final class EventPage {

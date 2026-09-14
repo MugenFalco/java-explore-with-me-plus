@@ -51,8 +51,10 @@ public final class EventMapper {
                 event.isRequestModeration(),
                 event.getState(),
                 event.getTitle(),
-                metrics.views()
-        );
+                metrics.views(),
+                metrics.likes(),
+                metrics.dislikes(),
+                metrics.rating());
     }
 
     public static EventShortDto toEventShortDto(Event event, EventMetrics metrics) {
@@ -65,7 +67,10 @@ public final class EventMapper {
                 UserMapper.toUserShortDto(event.getInitiator()),
                 event.isPaid(),
                 event.getTitle(),
-                metrics.views()
+                metrics.views(),
+                metrics.likes(),
+                metrics.dislikes(),
+                metrics.rating()
         );
     }
 
