@@ -1,5 +1,7 @@
 package ewm.rating.service;
 
+import ewm.rating.dto.AuthorRatingCount;
+import ewm.rating.dto.AuthorRatingDto;
 import ewm.rating.dto.EventRatingCount;
 import ewm.rating.entity.RatingType;
 
@@ -13,4 +15,10 @@ public interface RatingService {
     void delete(Long userId, Long eventId);
 
     Map<Long, EventRatingCount> getRatingsForEvents(List<Long> eventIds);
+
+    List<EventRatingCount> getTopEvents(int from, int size);
+
+    AuthorRatingDto getAuthorRating(Long userId);
+
+    List<AuthorRatingDto> getTopAuthors(int from, int size);
 }
