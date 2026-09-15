@@ -23,7 +23,6 @@ import ewm.rating.dto.EventRatingCount;
 import ewm.rating.service.RatingService;
 import ewm.request.service.RequestService;
 import ewm.user.User;
-import ewm.rating.service.RatingService;
 import ewm.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -206,25 +205,23 @@ public class EventServiceImpl implements EventService {
 
     private List<EventShortDto> getPublicEventsSortedByRating(PublicEventSearchParams searchParams) {
 
-        List<Event> events = eventRepository.findAll(EventSpecification.byPublicFilters(searchParams));
+        List<Event> events = eventRepository.findPublicEventsSortedByRating(
+                searchParams.getText(),
+                searchParams.getCategories(),
+                searchParams.getPaid(),
+                searchParams.getRangeStart(),
+                searchParams.getRangeEnd(),
+                searchParams.isOnlyAvailable(),
+                PageRequest.of(
+                        searchParams.getFrom() / searchParams.getSize(),
+                        searchParams.getSize()
+                )
+        );
 
         Map<Long, EventMetrics> metrics = metricsFor(eventIdsOf(events));
 
-        events.sort(Comparator.comparingLong(
-                (Event event) -> metrics.getOrDefault(event.getId(), EventMetrics.EMPTY).rating()
-        ).reversed());
-
-        int from = searchParams.getFrom();
-        int size = searchParams.getSize();
-
-        if (from >= events.size()) {
-            return List.of();
-        }
-
-        int to = Math.min(from + size, events.size());
-
-        return events.subList(from, to).stream()
-                .map(event -> EventMapper.toEventShortDto(
+        return events.stream()
+                .map((Event event) -> EventMapper.toEventShortDto(
                         event,
                         metrics.getOrDefault(event.getId(), EventMetrics.EMPTY)
                 ))
