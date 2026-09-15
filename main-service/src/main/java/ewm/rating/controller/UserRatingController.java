@@ -1,6 +1,5 @@
 package ewm.rating.controller;
 
-import ewm.event.service.EventService;
 import ewm.rating.dto.AuthorRatingDto;
 import ewm.rating.service.RatingService;
 import jakarta.validation.constraints.Min;

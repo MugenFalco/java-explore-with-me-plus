@@ -1,6 +1,5 @@
 package ewm.rating.service;
 
-import ewm.rating.dto.AuthorRatingCount;
 import ewm.rating.dto.AuthorRatingDto;
 import ewm.rating.dto.EventRatingCount;
 import ewm.rating.entity.RatingType;

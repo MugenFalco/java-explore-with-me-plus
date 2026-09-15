@@ -5,7 +5,6 @@ import ewm.event.entity.EventState;
 import ewm.event.service.EventLookupService;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
-import ewm.rating.dto.AuthorRatingCount;
 import ewm.rating.dto.AuthorRatingDto;
 import ewm.rating.dto.EventRatingCount;
 import ewm.rating.entity.Rating;
