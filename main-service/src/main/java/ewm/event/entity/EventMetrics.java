@@ -8,5 +8,5 @@ public record EventMetrics(long confirmedRequests,
 
 
 
-    public static final EventMetrics EMPTY = new EventMetrics(0, 0, 0 , 0, 0);
+    public static final EventMetrics EMPTY = new EventMetrics(0, 0, 0, 0, 0);
 }
