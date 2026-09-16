@@ -34,9 +34,9 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
                      OR LOWER(e.description) LIKE LOWER(CONCAT('%', :text, '%'))
                 )
                 AND (:paid IS NULL OR e.paid = :paid)
-                AND (:rangeStart IS NULL OR e.eventDate >= :rangeStart) 
+                AND (:rangeStart IS NULL OR e.eventDate >= :rangeStart)
                 AND (:rangeEnd IS NULL OR e.eventDate <= :rangeEnd)
-                AND (:categories IS NULL OR e.category.id IN :categories)     
+                AND (:categories IS NULL OR e.category.id IN :categories)
                 AND (
                                 :onlyAvailable = false
                                 OR e.participantLimit = 0
@@ -46,12 +46,12 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
                                     WHERE req.event.id = e.id
                                         AND req.status = ewm.request.entity.RequestStatus.CONFIRMED
                                 ) < e.participantLimit
-                )                  
+                )
             GROUP BY e.id
             ORDER BY (
                       SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.LIKE THEN 1L ELSE 0L END) -
-                      SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.DISLIKE THEN 1L ELSE 0L END)            
-                      ) DESC                                                                             
+                      SUM(CASE WHEN r.type = ewm.rating.entity.RatingType.DISLIKE THEN 1L ELSE 0L END)
+                      ) DESC
             """)
     List<Event> findPublicEventsSortedByRating(
             @Param("text") String text,
