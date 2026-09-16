@@ -1,10 +1,10 @@
 package ewm.event.repository;
 
 import ewm.event.entity.Event;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -31,7 +31,7 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
                 AND (
                      :text IS NULL OR :text = ''
                      OR LOWER(e.annotation) LIKE LOWER(CONCAT('%', :text, '%'))
-                     OR LOWER(e.description) LIKE LOWER(CONCAT('%', :text, '%'))                        
+                     OR LOWER(e.description) LIKE LOWER(CONCAT('%', :text, '%'))
                 )
                 AND (:paid IS NULL OR e.paid = :paid)
                 AND (:rangeStart IS NULL OR e.eventDate >= :rangeStart) 
@@ -61,5 +61,5 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
             @Param("rangeEnd") LocalDateTime rangeEnd,
             @Param("onlyAvailable") boolean onlyAvailable,
             Pageable pageable
-            );
+    );
 }
