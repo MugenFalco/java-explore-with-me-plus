@@ -38,6 +38,7 @@ public class EventServiceImpl implements EventService {
 
     private static final LocalDateTime STATS_RANGE_START = LocalDateTime.of(2000, 1, 1, 0, 0);
     private static final int EVENT_LEAD_TIME_HOURS = 2;
+    private static final int ADMIN_EVENT_LEAD_TIME_HOURS = 1;
 
     private final EventRepository eventRepository;
     private final UserService userService;
@@ -129,6 +130,7 @@ public class EventServiceImpl implements EventService {
     public EventFullDto updateByAdmin(Long eventId, UpdateEventAdminRequest request) {
         Event event = getEvent(eventId);
         if (request.getEventDate() != null) {
+            validateAdminEventDate(request.getEventDate());
             event.setEventDate(request.getEventDate());
         }
         if (request.getAnnotation() != null) {
@@ -247,6 +249,12 @@ public class EventServiceImpl implements EventService {
     private void validateEventDate(LocalDateTime eventDate) {
         if (eventDate.isBefore(LocalDateTime.now().plusHours(EVENT_LEAD_TIME_HOURS))) {
             throw new ConflictException("Дата события должна быть не ранее чем через два часа от текущего момента.");
+        }
+    }
+
+    private void validateAdminEventDate(LocalDateTime eventDate) {
+        if (eventDate.isBefore(LocalDateTime.now().plusHours(ADMIN_EVENT_LEAD_TIME_HOURS))) {
+            throw new ConflictException("Дата события должна быть не ранее чем через один час от текущего момента.");
         }
     }
 
