@@ -3,16 +3,7 @@ package ewm.event.service;
 import ewm.category.Category;
 import ewm.category.CategoryService;
 import ewm.common.dto.PageRequestDto;
-import ewm.event.dto.AdminEventSearchParams;
-import ewm.event.dto.EventFullDto;
-import ewm.event.dto.EventShortDto;
-import ewm.event.dto.EventAdminStateAction;
-import ewm.event.dto.EventUserStateAction;
-import ewm.event.dto.NewEventDto;
-import ewm.event.dto.PublicEventSort;
-import ewm.event.dto.PublicEventSearchParams;
-import ewm.event.dto.UpdateEventAdminRequest;
-import ewm.event.dto.UpdateEventUserRequest;
+import ewm.event.dto.*;
 import ewm.event.entity.*;
 import ewm.event.mapper.EventMapper;
 import ewm.event.repository.EventRepository;
@@ -180,10 +171,6 @@ public class EventServiceImpl implements EventService {
             searchParams.setRangeStart(LocalDateTime.now());
         }
 
-        if (searchParams.getSort() == PublicEventSort.RATING) {
-            return getPublicEventsSortedByRating(searchParams);
-        }
-
         List<Event> events = getPage(new EventPage(searchParams, toSort(searchParams.getSort())),
                 pageable ->
                         eventRepository.findAll(EventSpecification.byPublicFilters(searchParams), pageable));
@@ -196,35 +183,16 @@ public class EventServiceImpl implements EventService {
                                     (Event event) -> metrics.getOrDefault(event.getId(), EventMetrics.EMPTY).views())
                             .reversed())
                     .toList();
+        } else if (searchParams.getSort() == PublicEventSort.RATING) {
+            events = events.stream()
+                    .sorted(Comparator.comparingLong(
+                                    (Event event) -> metrics.getOrDefault(event.getId(), EventMetrics.EMPTY).rating())
+                            .reversed())
+                    .toList();
         }
 
         return events.stream()
                 .map(event -> EventMapper.toEventShortDto(event, metrics.get(event.getId())))
-                .toList();
-    }
-
-    private List<EventShortDto> getPublicEventsSortedByRating(PublicEventSearchParams searchParams) {
-
-        List<Event> events = eventRepository.findPublicEventsSortedByRating(
-                searchParams.getText(),
-                searchParams.getCategories(),
-                searchParams.getPaid(),
-                searchParams.getRangeStart(),
-                searchParams.getRangeEnd(),
-                searchParams.isOnlyAvailable(),
-                PageRequest.of(
-                        searchParams.getFrom() / searchParams.getSize(),
-                        searchParams.getSize()
-                )
-        );
-
-        Map<Long, EventMetrics> metrics = metricsFor(eventIdsOf(events));
-
-        return events.stream()
-                .map((Event event) -> EventMapper.toEventShortDto(
-                        event,
-                        metrics.getOrDefault(event.getId(), EventMetrics.EMPTY)
-                ))
                 .toList();
     }
 
@@ -236,7 +204,6 @@ public class EventServiceImpl implements EventService {
         }
         return EventMapper.toEventFullDto(event, metricsFor(eventId));
     }
-
 
     @Override
     public Set<Event> getEventsByIds(Set<Long> eventIds) {
@@ -309,7 +276,7 @@ public class EventServiceImpl implements EventService {
     }
 
     private Sort toSort(PublicEventSort sort) {
-        if (sort == PublicEventSort.VIEWS) {
+        if (sort == PublicEventSort.VIEWS || sort == PublicEventSort.RATING) {
             return Sort.unsorted();
         }
         return Sort.by(Sort.Direction.ASC, "eventDate");
