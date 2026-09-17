@@ -1,0 +1,2836 @@
+{
+  "info": {
+    "_postman_id": "9244e593-407a-4a54-a4af-785dfcf97392",
+    "name": "Sprint 17 Explore-with-me (rating)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "21220988"
+  },
+  "item": [
+    {
+      "name": "rating",
+      "item": [
+        {
+          "name": "like success",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let likerId = null;",
+                  "        let eventId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                likerId = liker.id;",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Лайкер с email 2@2.ww не найден в БД. Проверьте выполнение sql-скрипта!\");",
+                  "            }",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Автор события с email 1@1.ww не найден в БД. Проверьте выполнение sql-скрипта!\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const categories = await api.getCategories();",
+                  "        if (Array.isArray(categories)) {",
+                  "            const category = categories.find(c => c.name === \"Тестовая категория\");",
+                  "            if (category) {",
+                  "                pm.collectionVariables.set(\"currentCategoryId\", category.id);",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    eventId = event.id;",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                    console.log(`[Postman] Событие в прошлом успешно найдено. ID: ${event.id}`);",
+                  "                } else {",
+                  "                    console.error(\"[Postman Ошибка] Событие с названием 'Событие в прошлом' не найдено у автора.\");",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId && likerId && eventId) {",
+                  "            let requests = await api.getEventRequests(authorId, eventId);",
+                  "            let targetRequest = null;",
+                  "            ",
+                  "            if (Array.isArray(requests)) {",
+                  "                targetRequest = requests.find(r => r.requester === likerId);",
+                  "            }",
+                  "",
+                  "            if (!targetRequest) {",
+                  "                console.log(\"[Postman] Заявка от лайкера не обнаружена в БД. Подаем новую заявку\");",
+                  "                await api.createParticipationRequest(likerId, eventId);",
+                  "                ",
+                  "                requests = await api.getEventRequests(authorId, eventId);",
+                  "                if (Array.isArray(requests)) {",
+                  "                    targetRequest = requests.find(r => r.requester === likerId);",
+                  "                }",
+                  "            }",
+                  "",
+                  "            if (targetRequest && targetRequest.status !== \"CONFIRMED\") {",
+                  "                console.log(`[Postman] Найдена заявка в статусе ${targetRequest.status}.`);",
+                  "                ",
+                  "                const updateBody = {",
+                  "                    requestIds: [targetRequest.id],",
+                  "                    status: \"CONFIRMED\"",
+                  "                };",
+                  "                ",
+                  "                await api.changeRequestsStatus(authorId, eventId, updateBody);",
+                  "                console.log(\"[Postman Успех] Заявка лайкера успешно подтверждена!\");",
+                  "            } else if (targetRequest && targetRequest.status === \"CONFIRMED\") {",
+                  "                console.log(\"[Postman] Заявка лайкера уже находилась в статусе CONFIRMED. Шаг пропущен.\");",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] КРИТИЧЕСКАЯ ОШИБКА: Не удалось создать или получить объект заявки.\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        console.log(`[Postman Подготовка Завершена] Итоговые параметры URL -> Liker ID: ${likerId}, Event ID: ${eventId}`);",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время асинхронной подготовки данных к тесту лайка:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 and without body\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/like",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "like failed by user not found",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    ",
+                  "    const rndStr = Math.random().toString(36).substring(2, 7);",
+                  "    const fakeUserBody = {",
+                  "        name: \"Temporary User\",",
+                  "        email: `temp_${rndStr}@test.ru`",
+                  "    };",
+                  "",
+                  "    try {",
+                  "        const tempUser = await api.addUser(fakeUserBody);",
+                  "        ",
+                  "        if (tempUser && tempUser.id) {",
+                  "            const nonExistentId = Number(tempUser.id) + 1;",
+                  "            ",
+                  "            pm.collectionVariables.set(\"eventLikerId\", nonExistentId);",
+                  "            console.log(`[Postman] Последний ID в БД: ${tempUser.id}. Для теста используем несуществующий ID: ${nonExistentId}`);",
+                  "        } else {",
+                  "            pm.collectionVariables.set(\"eventLikerId\", 999999);",
+                  "        }",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        let authorId = null;",
+                  "        if (Array.isArray(users)) {",
+                  "            const author = users.find(u => u.email === \"1@1.ww\");",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId); ",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                } else {",
+                  "                    console.error(\"[Postman Ошибка] 'Событие в прошлом' не найдено у автора.\");",
+                  "                }",
+                  "            }",
+                  "        } else {",
+                  "            console.error(\"[Postman Ошибка] Автор с email 1@1.ww не найден для поиска события.\");",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Ошибка при динамической генерации несуществующего ID.\", err);",
+                  "        pm.collectionVariables.set(\"eventLikerId\", 999999);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 and with body\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    const messageText = jsonData.message;",
+                  "    pm.expect(messageText).to.include(\"Пользователь с идентификатором\");",
+                  "    pm.expect(messageText).to.include(\"не найден.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/like",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "like failed by event not found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 and with body\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    const messageText = jsonData.message;",
+                  "    pm.expect(messageText).to.include(\"Событие с идентификатором\");",
+                  "    pm.expect(messageText).to.include(\"не найдено.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    const rnd = new RandomUtils();",
+                  "",
+                  "    try {",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            } else {",
+                  "                console.error(\"[Postman] Пользователь с email - 2@2.ww не найден в БД. Проверьте data.sql!\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const rndStr = Math.random().toString(36).substring(2, 7);",
+                  "        const author = await api.addUser({ name: \"Temp Author\", email: `auth_${rndStr}@test.ru` });",
+                  "        ",
+                  "        const category = await api.addCategory(rnd.getCategory());",
+                  "        ",
+                  "        const eventBody = rnd.getEvent(category.id);",
+                  "        eventBody.title = \"Тестовый ивент\"; ",
+                  "        const tempEvent = await api.addEvent(eventBody, author.id);",
+                  "",
+                  "        if (tempEvent && tempEvent.id) {",
+                  "            const nonExistentEventId = Number(tempEvent.id) + 1;",
+                  "            ",
+                  "            pm.collectionVariables.set(\"currentEventId\", nonExistentEventId);",
+                  "            pm.variables.set(\"currentEventId\", nonExistentEventId);",
+                  "            ",
+                  "            console.log(`[Postman] Последний Event ID в БД: ${tempEvent.id}. Для теста шлем несуществующий Event ID: ${nonExistentEventId}`);",
+                  "        } else {",
+                  "            pm.collectionVariables.set(\"currentEventId\", 999999);",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Ошибка при динамической генерации несуществующего ID события.\", err);",
+                  "        pm.collectionVariables.set(\"currentEventId\", 999999);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/like",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "like failed by can't like own event",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let eventId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "                pm.collectionVariables.set(\"eventLikerId\", author.id);",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Автор события с email 1@1.ww не найден в БД. Проверьте выполнение sql-скрипта!\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    eventId = event.id;",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                    console.log(`[Postman] Событие найдено. ID: ${event.id}. Лайк шлется от лица Автора с ID: ${authorId}`);",
+                  "                } else {",
+                  "                    console.error(\"[Postman Ошибка] Событие с названием 'Событие в прошлом' не найдено у автора.\");",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время подготовки данных к негативному тесту:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 409 and with body\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Нельзя оценивать собственное событие.\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/like",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "like failed by can't like not published events",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    const rnd = new RandomUtils();",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let categoryId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            }",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const categories = await api.getCategories();",
+                  "        if (Array.isArray(categories)) {",
+                  "            const category = categories.find(c => c.name === \"Тестовая категория\");",
+                  "            if (category) {",
+                  "                categoryId = category.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId && categoryId) {",
+                  "            const eventBody = rnd.getEvent(categoryId);",
+                  "            eventBody.title = \"Неопубликованное событие для теста 409\"; ",
+                  "            ",
+                  "            console.log(\"[Postman] Создаем событие\");",
+                  "            const pendingEvent = await api.addEvent(eventBody, authorId);",
+                  "            ",
+                  "            if (pendingEvent && pendingEvent.id) {",
+                  "                pm.collectionVariables.set(\"currentEventId\", pendingEvent.id);",
+                  "                pm.variables.set(\"currentEventId\", pendingEvent.id);",
+                  "                console.log(`[Postman] Временное событие создано с ID: ${pendingEvent.id}`);",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Бэкенд не вернул ID созданного события.\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время подготовки данных к тесту неопубликованного события:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 409 and with body\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Оценить можно только опубликованное событие.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/like",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "like failed by can't like event before finished",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    const rnd = new RandomUtils();",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let likerId = null;",
+                  "        let categoryId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                likerId = liker.id;",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            }",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const categories = await api.getCategories();",
+                  "        if (Array.isArray(categories)) {",
+                  "            const category = categories.find(c => c.name === \"Тестовая категория\");",
+                  "            if (category) {",
+                  "                categoryId = category.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId && categoryId && likerId) {",
+                  "            const eventBody = rnd.getEvent(categoryId);",
+                  "            eventBody.title = \"Будущее событие для теста времени\"; ",
+                  "            ",
+                  "            console.log(\"[Postman] Создаем событие в будущем\");",
+                  "            const newEvent = await api.addEvent(eventBody, authorId);",
+                  "            ",
+                  "            if (newEvent && newEvent.id) {",
+                  "                const eventId = newEvent.id;",
+                  "                pm.collectionVariables.set(\"currentEventId\", eventId);",
+                  "                pm.variables.set(\"currentEventId\", eventId);",
+                  "",
+                  "                console.log(`[Postman] Публикуем событие Дата: ${eventBody.eventDate}`);",
+                  "                await api.publishEvent(eventId, eventBody.eventDate);",
+                  "                ",
+                  "                console.log(`[Postman] Подаем заявку на участие`);",
+                  "                await api.createParticipationRequest(likerId, eventId);",
+                  "",
+                  "                console.log(`[Postman] Автор подтверждает заявку`);",
+                  "                const requests = await api.getEventRequests(authorId, eventId);",
+                  "                if (Array.isArray(requests) && requests.length > 0) {",
+                  "                    const targetRequest = requests.find(r => r.requester === likerId);",
+                  "                    if (targetRequest) {",
+                  "                        const updateBody = {",
+                  "                            requestIds: [targetRequest.id],",
+                  "                            status: \"CONFIRMED\"",
+                  "                        };",
+                  "                        await api.changeRequestsStatus(authorId, eventId, updateBody);",
+                  "                        console.log(\"[Postman Успех] Инфраструктура готова. Будущее событие опубликовано, участие одобрено!\");",
+                  "                    }",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Подготовка данных завершилась ошибкой, подставляем заглушку 999999:\", err.message);",
+                  "        pm.collectionVariables.set(\"currentEventId\", 999999);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 409 and with body\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Оценить событие можно только после его окончания.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/like",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "like failed by can't like event without confirmed request",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    const rnd = new RandomUtils();",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Автор с email 1@1.ww не найден в БД. Проверьте data.sql!\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const rndStr = Math.random().toString(36).substring(2, 7);",
+                  "        const unconfirmedUser = await api.addUser({",
+                  "            name: \"Unconfirmed User\",",
+                  "            email: `no_req_${rndStr}@test.ru`",
+                  "        });",
+                  "",
+                  "        if (unconfirmedUser && unconfirmedUser.id) {",
+                  "            pm.collectionVariables.set(\"eventLikerId\", unconfirmedUser.id);",
+                  "            console.log(`[Postman] Создан временный пользователь без заявки. ID: ${unconfirmedUser.id}`);",
+                  "        } else {",
+                  "            console.error(\"[Postman Ошибка] Бэкенд не вернул ID при создании временного пользователя.\");",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                    console.log(`[Postman Успех] Целевое событие найдено. ID: ${event.id}`);",
+                  "                } else {",
+                  "                    console.error(\"[Postman Ошибка] 'Событие в прошлом' не найдено у автора.\");",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время подготовки данных к негативному тесту:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 409 and with body\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Оценить событие может только участник с подтверждённой заявкой.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/like",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "dislike success",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let likerId = null;",
+                  "        let eventId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                likerId = liker.id;",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Лайкер с email 2@2.ww не найден в БД. Проверьте выполнение sql-скрипта!\");",
+                  "            }",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Автор события с email 1@1.ww не найден в БД. Проверьте выполнение sql-скрипта!\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const categories = await api.getCategories();",
+                  "        if (Array.isArray(categories)) {",
+                  "            const category = categories.find(c => c.name === \"Тестовая категория\");",
+                  "            if (category) {",
+                  "                pm.collectionVariables.set(\"currentCategoryId\", category.id);",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    eventId = event.id;",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                    console.log(`[Postman] Событие в прошлом успешно найдено. ID: ${event.id}`);",
+                  "                } else {",
+                  "                    console.error(\"[Postman Ошибка] Событие с названием 'Событие в прошлом' не найдено у автора.\");",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId && likerId && eventId) {",
+                  "            let requests = await api.getEventRequests(authorId, eventId);",
+                  "            let targetRequest = null;",
+                  "            ",
+                  "            if (Array.isArray(requests)) {",
+                  "                targetRequest = requests.find(r => r.requester === likerId);",
+                  "            }",
+                  "",
+                  "            if (!targetRequest) {",
+                  "                console.log(\"[Postman] Заявка от лайкера не обнаружена в БД. Подаем новую заявку\");",
+                  "                await api.createParticipationRequest(likerId, eventId);",
+                  "                ",
+                  "                requests = await api.getEventRequests(authorId, eventId);",
+                  "                if (Array.isArray(requests)) {",
+                  "                    targetRequest = requests.find(r => r.requester === likerId);",
+                  "                }",
+                  "            }",
+                  "",
+                  "            if (targetRequest && targetRequest.status !== \"CONFIRMED\") {",
+                  "                console.log(`[Postman] Найдена заявка в статусе ${targetRequest.status}.`);",
+                  "                ",
+                  "                const updateBody = {",
+                  "                    requestIds: [targetRequest.id],",
+                  "                    status: \"CONFIRMED\"",
+                  "                };",
+                  "                ",
+                  "                await api.changeRequestsStatus(authorId, eventId, updateBody);",
+                  "                console.log(\"[Postman Успех] Заявка лайкера успешно подтверждена!\");",
+                  "            } else if (targetRequest && targetRequest.status === \"CONFIRMED\") {",
+                  "                console.log(\"[Postman] Заявка лайкера уже находилась в статусе CONFIRMED. Шаг пропущен.\");",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] КРИТИЧЕСКАЯ ОШИБКА: Не удалось создать или получить объект заявки.\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        console.log(`[Postman Подготовка Завершена] Итоговые параметры URL -> Liker ID: ${likerId}, Event ID: ${eventId}`);",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время асинхронной подготовки данных к тесту лайка:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 and without body\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/dislike",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "dislike"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "dislike failed by user not found",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    ",
+                  "    const rndStr = Math.random().toString(36).substring(2, 7);",
+                  "    const fakeUserBody = {",
+                  "        name: \"Temporary User\",",
+                  "        email: `temp_${rndStr}@test.ru`",
+                  "    };",
+                  "",
+                  "    try {",
+                  "        const tempUser = await api.addUser(fakeUserBody);",
+                  "        ",
+                  "        if (tempUser && tempUser.id) {",
+                  "            const nonExistentId = Number(tempUser.id) + 1;",
+                  "            ",
+                  "            pm.collectionVariables.set(\"eventLikerId\", nonExistentId);",
+                  "            console.log(`[Postman] Последний ID в БД: ${tempUser.id}. Для теста используем несуществующий ID: ${nonExistentId}`);",
+                  "        } else {",
+                  "            pm.collectionVariables.set(\"eventLikerId\", 999999);",
+                  "        }",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        let authorId = null;",
+                  "        if (Array.isArray(users)) {",
+                  "            const author = users.find(u => u.email === \"1@1.ww\");",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId); ",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                } else {",
+                  "                    console.error(\"[Postman Ошибка] 'Событие в прошлом' не найдено у автора.\");",
+                  "                }",
+                  "            }",
+                  "        } else {",
+                  "            console.error(\"[Postman Ошибка] Автор с email 1@1.ww не найден для поиска события.\");",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Ошибка при динамической генерации несуществующего ID.\", err);",
+                  "        pm.collectionVariables.set(\"eventLikerId\", 999999);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 and with body\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    const messageText = jsonData.message;",
+                  "    pm.expect(messageText).to.include(\"Пользователь с идентификатором\");",
+                  "    pm.expect(messageText).to.include(\"не найден.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/dislike",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "dislike"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "dislike failed by event not found",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    const rnd = new RandomUtils();",
+                  "",
+                  "    try {",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            } else {",
+                  "                console.error(\"[Postman] Пользователь с email - 2@2.ww не найден в БД. Проверьте data.sql!\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const rndStr = Math.random().toString(36).substring(2, 7);",
+                  "        const author = await api.addUser({ name: \"Temp Author\", email: `auth_${rndStr}@test.ru` });",
+                  "        ",
+                  "        const category = await api.addCategory(rnd.getCategory());",
+                  "        ",
+                  "        const eventBody = rnd.getEvent(category.id);",
+                  "        eventBody.title = \"Тестовый ивент\"; ",
+                  "        const tempEvent = await api.addEvent(eventBody, author.id);",
+                  "",
+                  "        if (tempEvent && tempEvent.id) {",
+                  "            const nonExistentEventId = Number(tempEvent.id) + 1;",
+                  "            ",
+                  "            pm.collectionVariables.set(\"currentEventId\", nonExistentEventId);",
+                  "            pm.variables.set(\"currentEventId\", nonExistentEventId);",
+                  "            ",
+                  "            console.log(`[Postman] Последний Event ID в БД: ${tempEvent.id}. Для теста шлем несуществующий Event ID: ${nonExistentEventId}`);",
+                  "        } else {",
+                  "            pm.collectionVariables.set(\"currentEventId\", 999999);",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Ошибка при динамической генерации несуществующего ID события.\", err);",
+                  "        pm.collectionVariables.set(\"currentEventId\", 999999);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 and with body\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/dislike",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "dislike"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "dislike failed by can't like own event",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let eventId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "                pm.collectionVariables.set(\"eventLikerId\", author.id);",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Автор события с email 1@1.ww не найден в БД. Проверьте выполнение sql-скрипта!\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    eventId = event.id;",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                    console.log(`[Postman] Событие найдено. ID: ${event.id}. Лайк шлется от лица Автора с ID: ${authorId}`);",
+                  "                } else {",
+                  "                    console.error(\"[Postman Ошибка] Событие с названием 'Событие в прошлом' не найдено у автора.\");",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время подготовки данных к негативному тесту:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 409 and with body\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Нельзя оценивать собственное событие.\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/dislike",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "dislike"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "dislike failed by can't like not published events",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    const rnd = new RandomUtils();",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let categoryId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            }",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const categories = await api.getCategories();",
+                  "        if (Array.isArray(categories)) {",
+                  "            const category = categories.find(c => c.name === \"Тестовая категория\");",
+                  "            if (category) {",
+                  "                categoryId = category.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId && categoryId) {",
+                  "            const eventBody = rnd.getEvent(categoryId);",
+                  "            eventBody.title = \"Неопубликованное событие для теста 409\"; ",
+                  "            ",
+                  "            console.log(\"[Postman] Создаем событие\");",
+                  "            const pendingEvent = await api.addEvent(eventBody, authorId);",
+                  "            ",
+                  "            if (pendingEvent && pendingEvent.id) {",
+                  "                pm.collectionVariables.set(\"currentEventId\", pendingEvent.id);",
+                  "                pm.variables.set(\"currentEventId\", pendingEvent.id);",
+                  "                console.log(`[Postman] Временное событие создано с ID: ${pendingEvent.id}`);",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Бэкенд не вернул ID созданного события.\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время подготовки данных к тесту неопубликованного события:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 409 and with body\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Оценить можно только опубликованное событие.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/dislike",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "dislike"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "dislike failed by can't like event before finished",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    const rnd = new RandomUtils();",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let likerId = null;",
+                  "        let categoryId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                likerId = liker.id;",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            }",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const categories = await api.getCategories();",
+                  "        if (Array.isArray(categories)) {",
+                  "            const category = categories.find(c => c.name === \"Тестовая категория\");",
+                  "            if (category) {",
+                  "                categoryId = category.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId && categoryId && likerId) {",
+                  "            const eventBody = rnd.getEvent(categoryId);",
+                  "            eventBody.title = \"Будущее событие для теста времени\"; ",
+                  "            ",
+                  "            console.log(\"[Postman] Создаем событие в будущем\");",
+                  "            const newEvent = await api.addEvent(eventBody, authorId);",
+                  "            ",
+                  "            if (newEvent && newEvent.id) {",
+                  "                const eventId = newEvent.id;",
+                  "                pm.collectionVariables.set(\"currentEventId\", eventId);",
+                  "                pm.variables.set(\"currentEventId\", eventId);",
+                  "",
+                  "                console.log(`[Postman] Публикуем событие Дата: ${eventBody.eventDate}`);",
+                  "                await api.publishEvent(eventId, eventBody.eventDate);",
+                  "                ",
+                  "                console.log(`[Postman] Подаем заявку на участие`);",
+                  "                await api.createParticipationRequest(likerId, eventId);",
+                  "",
+                  "                console.log(`[Postman] Автор подтверждает заявку`);",
+                  "                const requests = await api.getEventRequests(authorId, eventId);",
+                  "                if (Array.isArray(requests) && requests.length > 0) {",
+                  "                    const targetRequest = requests.find(r => r.requester === likerId);",
+                  "                    if (targetRequest) {",
+                  "                        const updateBody = {",
+                  "                            requestIds: [targetRequest.id],",
+                  "                            status: \"CONFIRMED\"",
+                  "                        };",
+                  "                        await api.changeRequestsStatus(authorId, eventId, updateBody);",
+                  "                        console.log(\"[Postman Успех] Инфраструктура готова. Будущее событие опубликовано, участие одобрено!\");",
+                  "                    }",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Подготовка данных завершилась ошибкой, подставляем заглушку 999999:\", err.message);",
+                  "        pm.collectionVariables.set(\"currentEventId\", 999999);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 409 and with body\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Оценить событие можно только после его окончания.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/dislike",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "dislike"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "dislike failed by can't like event without confirmed request",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    const rnd = new RandomUtils();",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            } else {",
+                  "                console.error(\"[Postman Ошибка] Автор с email 1@1.ww не найден в БД. Проверьте data.sql!\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const rndStr = Math.random().toString(36).substring(2, 7);",
+                  "        const unconfirmedUser = await api.addUser({",
+                  "            name: \"Unconfirmed User\",",
+                  "            email: `no_req_${rndStr}@test.ru`",
+                  "        });",
+                  "",
+                  "        if (unconfirmedUser && unconfirmedUser.id) {",
+                  "            pm.collectionVariables.set(\"eventLikerId\", unconfirmedUser.id);",
+                  "            console.log(`[Postman] Создан временный пользователь без заявки. ID: ${unconfirmedUser.id}`);",
+                  "        } else {",
+                  "            console.error(\"[Postman Ошибка] Бэкенд не вернул ID при создании временного пользователя.\");",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                    console.log(`[Postman Успех] Целевое событие найдено. ID: ${event.id}`);",
+                  "                } else {",
+                  "                    console.error(\"[Postman Ошибка] 'Событие в прошлом' не найдено у автора.\");",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время подготовки данных к негативному тесту:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 409 and with body\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Оценить событие может только участник с подтверждённой заявкой.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/dislike",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "dislike"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete success",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let likerId = null;",
+                  "        let eventId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                likerId = liker.id;",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            }",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    eventId = event.id;",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                    console.log(`[Postman] Целевое событие найдено. ID: ${event.id}`);",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (likerId && eventId) {",
+                  "            console.log(`[Postman] Отправляем фоновый PUT запрос для установки лайка перед удалением`);",
+                  "            ",
+                  "            await api.like(likerId, eventId);",
+                  "            ",
+                  "            console.log(\"[Postman Успех] Лайк успешно установлен в фоне! Переходим к основному DELETE запросу.\");",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время фоновой подготовки к DELETE-тесту:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 204 and without body\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/rating",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "rating"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete failed by rate not found",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let likerId = null;",
+                  "        let eventId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                likerId = liker.id;",
+                  "                pm.collectionVariables.set(\"eventLikerId\", liker.id);",
+                  "            }",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    eventId = event.id;",
+                  "                    pm.collectionVariables.set(\"currentEventId\", event.id);",
+                  "                    pm.variables.set(\"currentEventId\", event.id);",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (likerId && eventId) {",
+                  "            console.log(`[Postman] Принудительно очищаем оценку в фоне перед негативным тестом`);",
+                  "            try {",
+                  "                await api.deleteRating(likerId, eventId);",
+                  "            } catch (clearError) {",
+                  "                console.log(\"[Postman] Оценка в базе данных уже отсутствовала.\");",
+                  "            }",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время подготовки к негативному тесту удаления:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 and with body\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    const messageText = jsonData.message;",
+                  "    pm.expect(messageText).to.include(\"Оценка пользователя\");",
+                  "    pm.expect(messageText).to.include(\"для события\");",
+                  "    pm.expect(messageText).to.include(\"не найдена.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventLikerId}}/events/{{currentEventId}}/rating",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventLikerId}}",
+                "events",
+                "{{currentEventId}}",
+                "rating"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getAuthorRating success",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let likerId = null;",
+                  "        let eventId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) {",
+                  "                likerId = liker.id;",
+                  "            }",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) {",
+                  "                authorId = author.id;",
+                  "                pm.collectionVariables.set(\"eventAuthorId\", author.id);",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    eventId = event.id;",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (likerId && eventId) {",
+                  "            console.log(`[Postman] Накатываем фоновый лайк от пользователя ${likerId} для расчета рейтинга автора`);",
+                  "            ",
+                  "            try { await api.deleteRating(likerId, eventId); } catch(e) {}",
+                  "            await api.like(likerId, eventId);",
+                  "            ",
+                  "            console.log(\"[Postman Успех] Фоновый лайк установлен. Переходим к получению рейтинга автора.\");",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Критическая ошибка во время фоновой подготовки к тесту рейтинга:\", err);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 and with body\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('object');",
+                  "    pm.expect(jsonData).to.have.property('userId').that.is.a('number');",
+                  "    pm.expect(jsonData).to.have.property('rating').that.is.a('number');",
+                  "    pm.expect(jsonData).to.have.property('ratedEventsCount').that.is.a('number');",
+                  "    ",
+                  "    const expectedAuthorId = Number(pm.collectionVariables.get(\"eventAuthorId\"));",
+                  "    pm.expect(jsonData.userId).to.eql(expectedAuthorId);",
+                  "    ",
+                  "    pm.expect(jsonData.ratedEventsCount).to.be.at.least(1);",
+                  "    ",
+                  "    pm.expect(jsonData.rating).to.be.above(0.0);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{eventAuthorId}}/rating",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{eventAuthorId}}",
+                "rating"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getAuthorRating failed by user not found",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    ",
+                  "    const rndStr = Math.random().toString(36).substring(2, 7);",
+                  "    const tempUserBody = {",
+                  "        name: \"Upper Boundary User\",",
+                  "        email: `boundary_${rndStr}@test.ru`",
+                  "    };",
+                  "",
+                  "    try {",
+                  "        console.log(\"[Postman] Создаем временного пользователя для определения верхней границы ID\");",
+                  "        const tempUser = await api.addUser(tempUserBody);",
+                  "        ",
+                  "        if (tempUser && tempUser.id) {",
+                  "            const nonExistentId = Number(tempUser.id) + 1;",
+                  "            ",
+                  "            pm.collectionVariables.set(\"nonExistentUserId\", nonExistentId);",
+                  "            pm.variables.set(\"nonExistentUserId\", nonExistentId);",
+                  "            ",
+                  "            console.log(`[Postman Успех] Последний созданный ID: ${tempUser.id}. Для негативного теста используем: ${nonExistentId}`);",
+                  "        } else {",
+                  "            pm.collectionVariables.set(\"nonExistentUserId\", 999999);",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Ошибка при динамическом вычислении несуществующего ID:\", err);",
+                  "        pm.collectionVariables.set(\"nonExistentUserId\", 999999);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 and with body\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    const messageText = jsonData.message;",
+                  "    pm.expect(messageText).to.include(\"Пользователь с идентификатором\");",
+                  "    pm.expect(messageText).to.include(\"не найден.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/{{nonExistentUserId}}/rating",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "{{nonExistentUserId}}",
+                "rating"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getTopAuthors success",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "    const rnd = new RandomUtils();",
+                  "",
+                  "    try {",
+                  "        let categoryId = null;",
+                  "",
+                  "        const categories = await api.getCategories();",
+                  "        if (Array.isArray(categories)) {",
+                  "            const category = categories.find(c => c.name === \"Тестовая категория\");",
+                  "            if (category) {",
+                  "                categoryId = category.id;",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (!categoryId) {",
+                  "            const newCat = await api.addCategory(rnd.getCategory());",
+                  "            categoryId = newCat.id;",
+                  "        }",
+                  "",
+                  "        const voter1 = await api.addUser(rnd.getUser(\"voter\"));",
+                  "        const voter2 = await api.addUser(rnd.getUser(\"voter\"));",
+                  "",
+                  "        const authorLeader = await api.addUser(rnd.getUser(\"leader\"));",
+                  "        if (authorLeader && categoryId) {",
+                  "            const eventBody = rnd.getEvent(categoryId);",
+                  "            eventBody.title = \"Событие Автора Лидера\";",
+                  "            const event = await api.addEvent(eventBody, authorLeader.id);",
+                  "            if (event) {",
+                  "                await api.publishEvent(event.id, eventBody.eventDate);",
+                  "                await api.like(voter1.id, event.id);",
+                  "                await api.like(voter2.id, event.id);",
+                  "                console.log(`[Postman Топ] Лидер создан. ID: ${authorLeader.id} (Рейтинг: 2.0)`);",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const authorMiddle = await api.addUser(rnd.getUser(\"middle\"));",
+                  "        if (authorMiddle && categoryId) {",
+                  "            const eventBody = rnd.getEvent(categoryId);",
+                  "            eventBody.title = \"Событие Автора Середняка\";",
+                  "            const event = await api.addEvent(eventBody, authorMiddle.id);",
+                  "            if (event) {",
+                  "                await api.publishEvent(event.id, eventBody.eventDate);",
+                  "                await api.like(voter1.id, event.id);",
+                  "                console.log(`[Postman Топ] Середняк создан. ID: ${authorMiddle.id} (Рейтинг: 1.0)`);",
+                  "            }",
+                  "        }",
+                  "",
+                  "        const authorOutsider = await api.addUser(rnd.getUser(\"outsider\"));",
+                  "        if (authorOutsider && categoryId) {",
+                  "            const eventBody = rnd.getEvent(categoryId);",
+                  "            eventBody.title = \"Событие Автора Аутсайдера\";",
+                  "            const event = await api.addEvent(eventBody, authorOutsider.id);",
+                  "            if (event) {",
+                  "                await api.publishEvent(event.id, eventBody.eventDate);",
+                  "                await api.dislike(voter1.id, event.id);",
+                  "                //await api.sendRequest(\"PUT\", `/users/${voter1.id}/events/${event.id}/dislike`);",
+                  "                console.log(`[Postman Топ] Аутсайдер создан. ID: ${authorOutsider.id} (Рейтинг: -1.0)`);",
+                  "            }",
+                  "        }",
+                  "",
+                  "        console.log(\"[Postman Успех] Независимая тройка авторов успешно развернута в БД.\");",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Ошибка при автономной подготовке авторов для топа:\", err.message);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 and with body\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.at.least(3);",
+                  "",
+                  "    for (let i = 0; i < jsonData.length; i++) {",
+                  "        const author = jsonData[i];",
+                  "        pm.expect(author).to.have.property('userId').that.is.a('number');",
+                  "        pm.expect(author).to.have.property('rating').that.is.a('number');",
+                  "        pm.expect(author).to.have.property('ratedEventsCount').that.is.a('number');",
+                  "",
+                  "        //проверка сортировки",
+                  "        if (i < jsonData.length - 1) {",
+                  "            const currentRating = jsonData[i].rating;",
+                  "            const nextRating = jsonData[i + 1].rating;",
+                  "            pm.expect(currentRating).to.be.at.least(nextRating);",
+                  "        }",
+                  "    }",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/top-authors",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "top-authors"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getTopAuthors failed by incorrect query from",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 and with body\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Проверьте формат и обязательные параметры запроса.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/top-authors?from=-1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "top-authors"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "-1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getTopAuthors failed by incorrect query size",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 and with body\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Проверьте формат и обязательные параметры запроса.\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/users/top-authors?size=0",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "users",
+                "top-authors"
+              ],
+              "query": [
+                {
+                  "key": "size",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getTopEvents success",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const main = async () => {",
+                  "    const api = new API(pm);",
+                  "",
+                  "    try {",
+                  "        let authorId = null;",
+                  "        let likerId = null;",
+                  "        let eventId = null;",
+                  "",
+                  "        const users = await api.getUsers();",
+                  "        if (Array.isArray(users)) {",
+                  "            const liker = users.find(u => u.email === \"2@2.ww\");",
+                  "            if (liker) likerId = liker.id;",
+                  "",
+                  "            const author = users.find(u => u.email === \"1@1.ww\"); ",
+                  "            if (author) authorId = author.id;",
+                  "        }",
+                  "",
+                  "        if (authorId) {",
+                  "            const events = await api.getEvents(authorId);",
+                  "            if (Array.isArray(events)) {",
+                  "                const event = events.find(e => e.title === \"Событие в прошлом\");",
+                  "                if (event) {",
+                  "                    eventId = event.id;",
+                  "                }",
+                  "            }",
+                  "        }",
+                  "",
+                  "        if (likerId && eventId) {",
+                  "            try { await api.deleteRating(likerId, eventId); } catch(e) {}",
+                  "            await api.like(likerId, eventId);",
+                  "            ",
+                  "            console.log(\"[Postman Успех] Лайк поставлен.\");",
+                  "        }",
+                  "",
+                  "    } catch(err) {",
+                  "        console.error(\"Ошибка при подготовке завершенного события для топа:\", err.message);",
+                  "    }",
+                  "};",
+                  "",
+                  "const interval = setInterval(() => {}, 1000);",
+                  "setTimeout(async () => {",
+                  "    try {",
+                  "        await main();",
+                  "    } catch (e) {",
+                  "        console.error(e);",
+                  "    } finally {",
+                  "        clearInterval(interval);",
+                  "    }",
+                  "}, 100);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK and with body\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "",
+                  "    for (let i = 0; i < jsonData.length; i++) {",
+                  "        const event = jsonData[i];",
+                  "        pm.expect(event).to.have.property('id').that.is.a('number');",
+                  "        pm.expect(event).to.have.property('title').that.is.a('string');",
+                  "        pm.expect(event).to.have.property('annotation').that.is.a('string');",
+                  "        pm.expect(event).to.have.property('category').that.is.an('object');",
+                  "        pm.expect(event).to.have.property('initiator').that.is.an('object');",
+                  "        pm.expect(event).to.have.property('confirmedRequests').that.is.a('number');",
+                  "        pm.expect(event).to.have.property('eventDate').that.is.a('string');",
+                  "        pm.expect(event).to.have.property('paid').that.is.a('boolean');",
+                  "        pm.expect(event).to.have.property('views').that.is.a('number');",
+                  "        pm.expect(event).to.have.property('likes').that.is.a('number');",
+                  "        pm.expect(event).to.have.property('dislikes').that.is.a('number');",
+                  "        pm.expect(event).to.have.property('rating').that.is.a('number');",
+                  "",
+                  "        //проверка что дата ивента в прошлом",
+                  "        const eventDateRaw = event.eventDate;",
+                  "        const isoDateString = eventDateRaw.replace(\" \", \"T\");",
+                  "        const eventDate = new Date(isoDateString);",
+                  "        const currentDate = new Date();",
+                  "        pm.expect(eventDate.getTime()).to.be.below(currentDate.getTime());",
+                  "",
+                  "        //проверка сортировки",
+                  "        if (i < jsonData.length - 1) {",
+                  "            const currentRating = jsonData[i].rating;",
+                  "            const nextRating = jsonData[i + 1].rating;",
+                  "            pm.expect(currentRating).to.be.at.least(nextRating);",
+                  "        }",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/events/top",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "events",
+                "top"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getTopEvents failed by incorrect query from",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 and with body\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Проверьте формат и обязательные параметры запроса.\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/events/top?from=-1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "events",
+                "top"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "-1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getTopEvents failed by incorrect query size",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 and with body\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.response.to.be.withBody;",
+                  "    pm.response.to.be.json;",
+                  "",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Проверьте формат и обязательные параметры запроса.\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/events/top?size=0",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "events",
+                "top"
+              ],
+              "query": [
+                {
+                  "key": "size",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "API = class {",
+          "    constructor(postman, baseUrl = \"http://localhost:8080\") {",
+          "        this.baseUrl = baseUrl;",
+          "        this.pm = postman;",
+          "    }",
+          "",
+          "    async getUsers() {",
+          "        return this.sendRequest(\"GET\", \"/admin/users\");",
+          "    }",
+          "",
+          "    async addUser(user) {",
+          "        return this.sendRequest(\"POST\", \"/admin/users\", user);",
+          "    }",
+          "",
+          "    async addCategory(category) {",
+          "        return this.sendRequest(\"POST\", \"/admin/categories\", category);",
+          "    }",
+          "",
+          "    async getCategories() {",
+          "        return this.sendRequest(\"GET\", \"/categories\");",
+          "    }",
+          "",
+          "    async like(userId, eventId) {",
+          "        return this.sendRequest(\"PUT\", \"/users/\" + userId + \"/events/\" + eventId + \"/like\");",
+          "    }",
+          "",
+          "    async dislike(userId, eventId) {",
+          "        return this.sendRequest(\"PUT\", \"/users/\" + userId + \"/events/\" + eventId + \"/dislike\");",
+          "    }",
+          "",
+          "    async deleteRating(userId, eventId) {",
+          "        return this.sendRequest(\"DELETE\", \"/users/\" + userId + \"/events/\" + eventId + \"/rating\");",
+          "    }",
+          "",
+          "    async getEvents(userId) {",
+          "        return this.sendRequest(\"GET\", \"/users/\" + userId + \"/events\");",
+          "    }",
+          "",
+          "    async addEvent(event, userId) {",
+          "        return this.sendRequest(\"POST\", \"/users/\" + userId + \"/events\", event);",
+          "    }",
+          "",
+          "    async publishEvent(eventId, eventDate) {",
+          "        const body = {",
+          "            \"stateAction\": \"PUBLISH_EVENT\",",
+          "            \"eventDate\": eventDate",
+          "        };",
+          "        return this.sendRequest(\"PATCH\", \"/admin/events/\" + eventId, body);",
+          "    }",
+          "",
+          "    async createParticipationRequest(userId, eventId) {",
+          "        return this.sendRequest(\"POST\", \"/users/\" + userId + \"/requests?eventId=\" + eventId);",
+          "    }",
+          "",
+          "    async getEventRequests(userId, eventId) {",
+          "        return this.sendRequest(\"GET\", \"/users/\" + userId + \"/events/\" + eventId + \"/requests\");",
+          "    }",
+          "",
+          "    async changeRequestsStatus(userId, eventId, updateBody) {",
+          "        return this.sendRequest(\"PATCH\", \"/users/\" + userId + \"/events/\" + eventId + \"/requests\", updateBody);",
+          "    }",
+          "",
+          "    async sendRequest(method, path, body = null) {",
+          "        return new Promise((resolve, reject) => {",
+          "            const req = {",
+          "                url: this.baseUrl + path,",
+          "                method: method,",
+          "                body: body == null ? \"\" : JSON.stringify(body),",
+          "                header: { \"Content-Type\": \"application/json\" }",
+          "            };",
+          "            try {",
+          "                this.pm.sendRequest(req, (error, response) => {",
+          "                    if (error || response.code >= 400) {",
+          "                        reject(new Error(`Ошибка фонового запроса [${method} ${path}]: ` + (error || JSON.stringify(response.json()))));",
+          "                    } else {",
+          "                        resolve(response.stream.length === 0 ? null : response.json());",
+          "                    }",
+          "                });",
+          "            } catch (err) {",
+          "                reject(err);",
+          "            }",
+          "        });",
+          "    }",
+          "};",
+          "",
+          "RandomUtils = class {",
+          "    constructor() {}",
+          "",
+          "    getUser(role = \"temp\") {",
+          "        const rnd = Math.random().toString(36).substring(2, 7);",
+          "        return {",
+          "            name: `${role}_User_${rnd}`,",
+          "            email: `${role}_${rnd}@test.ru`",
+          "        };",
+          "    }",
+          "",
+          "    getCategory() {",
+          "        const rnd = Math.random().toString(36).substring(2, 7);",
+          "        return { ",
+          "            name: \"Temp_Cat_\" + rnd ",
+          "        };",
+          "    }",
+          "",
+          "    getEvent(categoryId) {",
+          "        const now = new Date();",
+          "        now.setHours(now.getHours() + 3);",
+          "        ",
+          "        const year = now.getFullYear();",
+          "        const month = String(now.getMonth() + 1).padStart(2, '0');",
+          "        const day = String(now.getDate()).padStart(2, '0');",
+          "        const hours = String(now.getHours()).padStart(2, '0');",
+          "        const minutes = String(now.getMinutes()).padStart(2, '0');",
+          "        const seconds = String(now.getSeconds()).padStart(2, '0');",
+          "        const formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;",
+          "",
+          "        return {",
+          "            annotation: \"Краткое аннотирование временного тестового события\",",
+          "            category: categoryId,",
+          "            description: \"Полное подробное описание временного тестового события для валидации полей\",",
+          "            eventDate: formattedDate,",
+          "            location: { lat: 55.754167, lon: 37.620000 },",
+          "            paid: true,",
+          "            participantLimit: 10,",
+          "            requestModeration: false,",
+          "            title: \"Временный Ивент\"",
+          "        };",
+          "    }",
+          "};",
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "eventLikerId",
+      "value": ""
+    },
+    {
+      "key": "currentCategoryId",
+      "value": ""
+    },
+    {
+      "key": "currentEventId",
+      "value": ""
+    },
+    {
+      "key": "eventAuthorId",
+      "value": ""
+    },
+    {
+      "key": "nonExistentUserId",
+      "value": ""
+    }
+  ]
+}
