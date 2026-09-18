@@ -151,4 +151,9 @@ public class RequestServiceImpl implements RequestService {
     private List<ParticipationRequestDto> toDtoList(List<Request> requests) {
         return requests.stream().map(RequestMapper::toDto).toList();
     }
+
+    @Override
+    public boolean hasConfirmedRequest(Long eventId, Long userId) {
+        return requestRepository.existsByEventIdAndRequesterIdAndStatus(eventId, userId, RequestStatus.CONFIRMED);
+    }
 }

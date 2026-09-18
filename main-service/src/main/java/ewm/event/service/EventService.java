@@ -33,4 +33,6 @@ public interface EventService {
     EventFullDto getPublicEvent(Long eventId);
 
     Set<Event> getEventsByIds(Set<Long> eventIds);
+
+    List<EventShortDto> getTopEvents(int from, int size);
 }

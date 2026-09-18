@@ -3,22 +3,15 @@ package ewm.event.service;
 import ewm.category.Category;
 import ewm.category.CategoryService;
 import ewm.common.dto.PageRequestDto;
-import ewm.event.dto.AdminEventSearchParams;
-import ewm.event.dto.EventFullDto;
-import ewm.event.dto.EventShortDto;
-import ewm.event.dto.EventAdminStateAction;
-import ewm.event.dto.EventUserStateAction;
-import ewm.event.dto.NewEventDto;
-import ewm.event.dto.PublicEventSort;
-import ewm.event.dto.PublicEventSearchParams;
-import ewm.event.dto.UpdateEventAdminRequest;
-import ewm.event.dto.UpdateEventUserRequest;
+import ewm.event.dto.*;
 import ewm.event.entity.*;
 import ewm.event.mapper.EventMapper;
 import ewm.event.repository.EventRepository;
 import ewm.exception.ConflictException;
 import ewm.exception.NotFoundException;
 import ewm.exception.ValidationException;
+import ewm.rating.dto.EventRatingCount;
+import ewm.rating.service.RatingService;
 import ewm.request.service.RequestService;
 import ewm.user.User;
 import ewm.user.UserService;
@@ -32,10 +25,7 @@ import stats.client.StatsClient;
 import stats.dto.ViewStatsDto;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -54,6 +44,7 @@ public class EventServiceImpl implements EventService {
     private final UserService userService;
     private final CategoryService categoryService;
     private final RequestService requestService;
+    private final RatingService ratingService;
 
     @Override
     public List<EventShortDto> getUserEvents(Long userId, PageRequestDto pageRequest) {
@@ -175,12 +166,31 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<EventShortDto> getPublicEvents(PublicEventSearchParams searchParams) {
         validateRange(searchParams.getRangeStart(), searchParams.getRangeEnd());
+
         if (searchParams.getRangeStart() == null && searchParams.getRangeEnd() == null) {
             searchParams.setRangeStart(LocalDateTime.now());
         }
+
         List<Event> events = getPage(new EventPage(searchParams, toSort(searchParams.getSort())),
-                pageable -> eventRepository.findAll(EventSpecification.byPublicFilters(searchParams), pageable));
+                pageable ->
+                        eventRepository.findAll(EventSpecification.byPublicFilters(searchParams), pageable));
+
         Map<Long, EventMetrics> metrics = metricsFor(eventIdsOf(events));
+
+        if (searchParams.getSort() == PublicEventSort.VIEWS) {
+            events = events.stream()
+                    .sorted(Comparator.comparingLong(
+                                    (Event event) -> metrics.getOrDefault(event.getId(), EventMetrics.EMPTY).views())
+                            .reversed())
+                    .toList();
+        } else if (searchParams.getSort() == PublicEventSort.RATING) {
+            events = events.stream()
+                    .sorted(Comparator.comparingLong(
+                                    (Event event) -> metrics.getOrDefault(event.getId(), EventMetrics.EMPTY).rating())
+                            .reversed())
+                    .toList();
+        }
+
         return events.stream()
                 .map(event -> EventMapper.toEventShortDto(event, metrics.get(event.getId())))
                 .toList();
@@ -195,7 +205,6 @@ public class EventServiceImpl implements EventService {
         return EventMapper.toEventFullDto(event, metricsFor(eventId));
     }
 
-
     @Override
     public Set<Event> getEventsByIds(Set<Long> eventIds) {
         if (eventIds == null || eventIds.isEmpty()) return Set.of();
@@ -207,6 +216,27 @@ public class EventServiceImpl implements EventService {
         }
 
         return new HashSet<>(foundEvents);
+    }
+
+    @Override
+    public List<EventShortDto> getTopEvents(int from, int size) {
+        List<Long> topEventIds = ratingService.getTopEvents(from, size).stream()
+                .map(EventRatingCount::getEventId)
+                .toList();
+
+        if (topEventIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Event> eventById = getEventsByIds(new HashSet<>(topEventIds)).stream()
+                .collect(Collectors.toMap(Event::getId, event -> event));
+        Map<Long, EventMetrics> metrics = metricsFor(topEventIds);
+
+        return topEventIds.stream()
+                .map(eventById::get)
+                .filter(Objects::nonNull)
+                .map(event -> EventMapper.toEventShortDto(event, metrics.get(event.getId())))
+                .toList();
     }
 
     private EventState toState(EventUserStateAction stateAction) {
@@ -246,10 +276,10 @@ public class EventServiceImpl implements EventService {
     }
 
     private Sort toSort(PublicEventSort sort) {
-        if (sort == PublicEventSort.EVENT_DATE) {
-            return Sort.by(Sort.Direction.ASC, "eventDate");
+        if (sort == PublicEventSort.VIEWS || sort == PublicEventSort.RATING) {
+            return Sort.unsorted();
         }
-        return Sort.unsorted();
+        return Sort.by(Sort.Direction.ASC, "eventDate");
     }
 
     private void updateAdminState(Event event, EventAdminStateAction stateAction) {
@@ -291,7 +321,8 @@ public class EventServiceImpl implements EventService {
     }
 
     private EventMetrics metricsFor(Long eventId) {
-        return new EventMetrics(requestService.countConfirmed(eventId), viewsFor(eventId));
+        Map<Long, EventMetrics> metrics = metricsFor(List.of(eventId));
+        return metrics.get(eventId);
     }
 
     private Map<Long, EventMetrics> metricsFor(List<Long> eventIds) {
@@ -300,9 +331,25 @@ public class EventServiceImpl implements EventService {
         }
         Map<Long, Long> confirmedByEvent = requestService.countConfirmedForEvents(eventIds);
         Map<Long, Long> viewsByEvent = viewsFor(eventIds);
+        Map<Long, EventRatingCount> ratingsByEvent =
+                ratingService.getRatingsForEvents(eventIds);
+
         return eventIds.stream().collect(Collectors.toMap(
                 id -> id,
-                id -> new EventMetrics(confirmedByEvent.getOrDefault(id, 0L), viewsByEvent.getOrDefault(id, 0L))));
+                id -> {
+                    EventRatingCount rating = ratingsByEvent.get(id);
+
+                    long likes = rating != null ? rating.getLikes() : 0L;
+                    long dislikes = rating != null ? rating.getDislikes() : 0L;
+
+                    return new EventMetrics(
+                            confirmedByEvent.getOrDefault(id, 0L),
+                            viewsByEvent.getOrDefault(id, 0L),
+                            likes,
+                            dislikes,
+                            likes - dislikes);
+                }
+        ));
     }
 
     private static final class EventPage {

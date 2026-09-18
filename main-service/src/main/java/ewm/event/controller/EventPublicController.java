@@ -6,12 +6,11 @@ import ewm.event.dto.PublicEventSearchParams;
 import ewm.event.service.EventService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 import stats.client.StatsClient;
 
 import java.util.List;
@@ -19,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/events")
 @RequiredArgsConstructor
+@Validated
 public class EventPublicController {
 
     private final EventService eventService;
@@ -35,6 +35,12 @@ public class EventPublicController {
     public EventFullDto getEvent(@PathVariable Long id, HttpServletRequest req) {
         recordHit(req);
         return eventService.getPublicEvent(id);
+    }
+
+    @GetMapping("/top")
+    public List<EventShortDto> getTopEvents(@RequestParam(defaultValue = "0") @Min(0) int from,
+                                            @RequestParam(defaultValue = "10") @Positive int size) {
+        return eventService.getTopEvents(from, size);
     }
 
     private void recordHit(HttpServletRequest request) {
